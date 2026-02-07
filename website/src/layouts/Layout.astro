@@ -1,0 +1,36 @@
+---
+const { title = "FEISHU COPY EXTENSION | Online Document Exporter" } = Astro.props;
+import "../styles/global.css";
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="description" content="One-click export for Feishu/Lark documents to Markdown/Rich Text." />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/online-doc-exporter/favicon.svg" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+
+		<!-- Fonts -->
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+	</head>
+	<body class="bg-slate-900 text-white font-inter selection:bg-indigo-500 selection:text-white">
+		<div class="fixed inset-0 -z-10 h-full w-full bg-slate-950 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px]">
+			<div class="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-indigo-500 opacity-20 blur-[100px]"></div>
+		</div>
+		<slot />
+	</body>
+</html>
+
+<style is:global>
+	:root {
+		--font-inter: 'Inter', sans-serif;
+	}
+	body {
+		font-family: var(--font-inter);
+	}
+</style>

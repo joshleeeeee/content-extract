@@ -24,6 +24,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- Initial State Recovery ---
+    chrome.runtime.sendMessage({ action: 'GET_BATCH_STATUS' }, (res) => {
+        if (res && (res.isProcessing || res.queueLength > 0)) {
+            startPolling();
+        }
+        updateStatus(); // Also update manager tab
+    });
+
+
     // --- Single Copy Logic ---
     const btnMarkdown = document.getElementById('btn-markdown');
     const btnRich = document.getElementById('btn-rich');
@@ -194,6 +203,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Prevent double-click immediately
+        btnBatchStart.disabled = true;
+        btnScan.disabled = true;
+
         const selectedItems = Array.from(checkboxes).map(cb => ({
             url: scannedLinks[cb.value].url,
             title: scannedLinks[cb.value].title
@@ -208,10 +221,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 startPolling();
                 showToast('已加入后台抓取队列');
             } else {
+                btnBatchStart.disabled = false;
+                btnScan.disabled = false;
                 showToast('启动任务失败');
             }
         });
     });
+
 
     btnClearAll.addEventListener('click', () => {
         if (confirm('确定要清空所有已下载的历史记录吗？正在进行的任务也会停止。')) {
@@ -225,32 +241,54 @@ document.addEventListener('DOMContentLoaded', () => {
     const updateStatus = () => {
         chrome.runtime.sendMessage({ action: 'GET_BATCH_STATUS' }, (res) => {
             if (!res) return;
-            const { isProcessing, queueLength, results } = res;
+            const { isProcessing, queue, results, currentItem } = res;
+            const queueList = queue || [];
+            const queueLength = queueList.length;
 
             // Update Batch Tab
-            if (isProcessing || queueLength > 0) {
+            if (isProcessing || queueLength > 0 || currentItem) {
                 progressContainer.style.display = 'block';
-                const totalFinished = results.length;
-                statusText.innerText = `进度: 已完成 ${totalFinished} | 待抓取 ${queueLength}`;
-                const percent = (totalFinished + queueLength) > 0 ? (totalFinished / (totalFinished + queueLength)) * 100 : 0;
+                const finishedCount = results.length;
+                const activeCount = currentItem ? 1 : 0;
+                const totalInThisBatch = finishedCount + activeCount + queueLength;
+
+                statusText.innerText = `进度: 已完成 ${finishedCount} | 正在抓取 ${activeCount} | 待抓取 ${queueLength}`;
+
+                const percent = totalInThisBatch > 0 ? (finishedCount / totalInThisBatch) * 100 : 0;
+
                 progressFill.style.width = Math.min(100, percent) + '%';
                 btnBatchStart.disabled = true;
                 btnScan.disabled = true;
             } else {
-                progressContainer.style.display = 'none';
-                btnBatchStart.disabled = false;
-                btnScan.disabled = false;
+                // If it was polling but now finished
+                if (pollInterval && !isProcessing && queueLength === 0 && !currentItem) {
+                    clearInterval(pollInterval);
+                    pollInterval = null;
+                    progressFill.style.width = '100%';
+                    statusText.innerText = '抓取任务已完成';
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                        btnBatchStart.disabled = false;
+                        btnScan.disabled = false;
+                    }, 3000);
+                } else if (!pollInterval) {
+                    progressContainer.style.display = 'none';
+                    btnBatchStart.disabled = false;
+                    btnScan.disabled = false;
+                }
             }
 
             // Update Manager Tab
-            renderManagerList(results);
+            renderManagerList(results, currentItem, queueList);
             btnDownloadZip.disabled = !results.some(r => r.status === 'success');
         });
     };
 
-    const renderManagerList = (results) => {
+    const renderManagerList = (results, currentItem, queue) => {
         managerList.innerHTML = '';
-        if (results.length === 0) {
+
+        const hasWork = results.length > 0 || currentItem || queue.length > 0;
+        if (!hasWork) {
             managerList.innerHTML = `
                 <div class="empty-state">
                     <svg viewBox="0 0 24 24" fill="none" width="48" height="48" style="margin-bottom:12px; opacity:0.2">
@@ -261,37 +299,59 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Sort by timestamp desc
-        const sorted = [...results].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-        sorted.forEach(item => {
+        // Helper to create list items
+        const createItemEl = (title, status, url, content = null) => {
             const div = document.createElement('div');
             div.className = 'batch-item';
             div.style.justifyContent = 'space-between';
 
-            const isSuccess = item.status === 'success';
-            const statusIcon = isSuccess ?
-                `<svg viewBox="0 0 24 24" fill="none" width="16" height="16" style="margin-right:8px"><path d="M22 11.08V12C21.9988 14.1564 21.3005 16.2547 20.0093 17.9888C18.7182 19.7228 16.9033 20.9972 14.8354 21.6226C12.7674 22.2479 10.5501 22.2031 8.51131 21.4939C6.47257 20.7848 4.7182 19.4471 3.51187 17.6835C2.30555 15.9199 1.71181 13.8214 1.81596 11.7019C1.92011 9.58232 2.71677 7.55024 4.08502 5.9103C5.45328 4.27035 7.31961 3.11196 9.40017 2.61099C11.4807 2.11003 13.6654 2.2929 15.63 3.13" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 4L12 14.01L9 11.01" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>` :
-                `<svg viewBox="0 0 24 24" fill="none" width="16" height="16" style="margin-right:8px"><circle cx="12" cy="12" r="10" stroke="#ef4444" stroke-width="2"/><line x1="15" y1="9" x2="9" y2="15" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/><line x1="9" y1="9" x2="15" y2="15" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/></svg>`;
+            let statusIcon = '';
+            let statusColor = '#1f2329';
+            let actions = '';
 
-            const statusColor = isSuccess ? '#1f2329' : '#ef4444';
+            if (status === 'success') {
+                statusIcon = `<svg viewBox="0 0 24 24" fill="none" width="16" height="16" style="margin-right:8px"><path d="M22 11.08V12C21.9988 14.1564 21.3005 16.2547 20.0093 17.9888C18.7182 19.7228 16.9033 20.9972 14.8354 21.6226C12.7674 22.2479 10.5501 22.2031 8.51131 21.4939C6.47257 20.7848 4.7182 19.4471 3.51187 17.6835C2.30555 15.9199 1.71181 13.8214 1.81596 11.7019C1.92011 9.58232 2.71677 7.55024 4.08502 5.9103C5.45328 4.27035 7.31961 3.11196 9.40017 2.61099C11.4807 2.11003 13.6654 2.2929 15.63 3.13" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 4L12 14.01L9 11.01" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+                actions = `<button class="btn-item-download" data-url="${url}" title="下载"><svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+            } else if (status === 'failed') {
+                statusIcon = `<svg viewBox="0 0 24 24" fill="none" width="16" height="16" style="margin-right:8px"><circle cx="12" cy="12" r="10" stroke="#ef4444" stroke-width="2"/><line x1="15" y1="9" x2="9" y2="15" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/><line x1="9" y1="9" x2="15" y2="15" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/></svg>`;
+                statusColor = '#ef4444';
+            } else if (status === 'processing') {
+                statusIcon = `<div class="loading-spin-small" style="margin-right:8px"></div>`;
+                statusColor = '#3370ff';
+            } else {
+                // pending
+                statusIcon = `<svg viewBox="0 0 24 24" fill="none" width="16" height="16" style="margin-right:8px; opacity:0.5"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+                statusColor = '#8f959e';
+            }
+
+            actions += `<button class="btn-item-delete" data-url="${url}" title="删除"><svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 6H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
 
             div.innerHTML = `
                 <div style="display:flex; align-items:center; flex:1; min-width:0;">
                     ${statusIcon}
-                    <span class="batch-item-text" style="color:${statusColor}">${item.title}</span>
+                    <span class="batch-item-text" style="color:${statusColor}">${title}${status === 'processing' ? ' (抓取中...)' : (status === 'pending' ? ' (等待中)' : '')}</span>
                 </div>
                 <div class="manager-actions">
-                    ${isSuccess ? `
-                    <button class="btn-item-download" data-url="${item.url}" title="下载">
-                        <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>` : ''}
-                    <button class="btn-item-delete" data-url="${item.url}" title="删除">
-                        <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 6H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
+                    ${actions}
                 </div>
             `;
-            managerList.appendChild(div);
+            return div;
+        };
+
+        // 1. Show Current Item
+        if (currentItem) {
+            managerList.appendChild(createItemEl(currentItem.title, 'processing', currentItem.url));
+        }
+
+        // 2. Show Queue
+        queue.forEach(item => {
+            managerList.appendChild(createItemEl(item.title, 'pending', item.url));
+        });
+
+        // 3. Show Results (sorted)
+        const sorted = [...results].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        sorted.forEach(item => {
+            managerList.appendChild(createItemEl(item.title, item.status, item.url, item.content));
         });
 
         // Delegate clicks

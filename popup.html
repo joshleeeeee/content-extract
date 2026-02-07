@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="css/popup.css">
+    <script src="js/libs/jszip.min.js"></script>
+    <script src="popup.js"></script>
+</head>
+
+<body>
+    <div class="header">
+        <div class="logo-icon">DOC</div>
+        <h3>OnlineDocExporter</h3>
+    </div>
+
+    <div class="feishu-copy-tabs">
+        <div class="tab-btn active" data-target="tab-single">单页复制</div>
+        <div class="tab-btn" data-target="tab-batch">批量抓取</div>
+        <div class="tab-btn" data-target="tab-manager">下载中心</div>
+    </div>
+
+    <!-- Single Tab -->
+    <div id="tab-single" class="tab-pane active">
+        <!-- Toggle Switch -->
+        <label class="feishu-copy-toggle">
+            <span>Base64 图片转码</span>
+            <input type="checkbox" id="toggle-base64">
+            <span class="feishu-copy-toggle-slider"></span>
+        </label>
+
+        <!-- Buttons -->
+        <div class="feishu-copy-btn-container">
+            <button id="btn-markdown" class="feishu-copy-btn">
+                <svg viewBox="0 0 24 24" fill="none" width="16" height="16" style="margin-right:8px">
+                    <path
+                        d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z"
+                        stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M7 7.00012V17.0001L10 12.0001L13 17.0001V7.00012" stroke="white" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M15 13H19" stroke="white" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+                <span>复制 Markdown</span>
+            </button>
+            <button id="btn-rich" class="feishu-copy-btn secondary">
+                <svg viewBox="0 0 24 24" fill="none" width="16" height="16" style="margin-right:8px">
+                    <path
+                        d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z"
+                        stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M14 2V8H20" stroke="#4a5568" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <path d="M16 13H8" stroke="#4a5568" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <path d="M16 17H8" stroke="#4a5568" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <path d="M10 9H9H8" stroke="#4a5568" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+                <span>复制富文本</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Batch Tab -->
+    <div id="tab-batch" class="tab-pane">
+        <div class="batch-controls">
+            <button id="btn-scan" class="feishu-copy-btn small">
+                <svg viewBox="0 0 24 24" fill="none" width="14" height="14" style="margin-right:6px">
+                    <path
+                        d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z"
+                        stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span>扫描链接</span>
+            </button>
+            <button id="btn-batch-start" class="feishu-copy-btn small secondary" disabled>
+                <svg viewBox="0 0 24 24" fill="none" width="14" height="14" style="margin-right:6px">
+                    <path d="M12 5V19M5 12H19" stroke="#4a5568" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+                <span>开始抓取</span>
+            </button>
+        </div>
+
+        <div class="batch-options">
+            <label><input type="checkbox" id="batch-check-all"> 全选</label>
+            <span id="batch-count">找到 0 个</span>
+        </div>
+
+        <div id="batch-list" class="batch-list">
+            <div class="empty-state">请先扫描当前页面以查找文档链接</div>
+        </div>
+
+        <div id="batch-progress-container" style="display:none; margin-top:10px;">
+            <div class="progress-bar">
+                <div id="batch-progress-fill" class="fill" style="width:0%"></div>
+            </div>
+            <div id="batch-status-text" style="font-size:12px; color:#666; margin-top:4px;">准备就绪</div>
+        </div>
+    </div>
+
+    <!-- Manager Tab (Download Center) -->
+    <div id="tab-manager" class="tab-pane">
+        <div class="manager-controls">
+            <button id="btn-download-zip" class="feishu-copy-btn small" disabled>
+                <svg viewBox="0 0 24 24" fill="none" width="14" height="14" style="margin-right:6px">
+                    <path
+                        d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15"
+                        stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M7 10L12 15L17 10" stroke="white" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <path d="M12 15V3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span>打包下载</span>
+            </button>
+            <button id="btn-clear-all" class="feishu-copy-btn small secondary">
+                <svg viewBox="0 0 24 24" fill="none" width="14" height="14" style="margin-right:6px">
+                    <path d="M3 6H21" stroke="#4a5568" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <path
+                        d="M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6"
+                        stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <path
+                        d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6"
+                        stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span>清空历史</span>
+            </button>
+        </div>
+
+        <div id="manager-list" class="manager-list">
+            <div class="empty-state">暂无已下载的文件</div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="feishu-copy-toast">复制成功！</div>
+
+    <div class="footer">
+        <span id="version-text">v1.0</span> · <a href="#" id="disclaimer-link"
+            style="color: #8f959e; text-decoration: underline;">免责声明</a>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+
+</html>

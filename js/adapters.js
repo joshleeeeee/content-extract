@@ -264,6 +264,16 @@ class FeishuAdapter extends BaseAdapter {
                 // Skip blocks inside tables (handled by table processor)
                 if (block.closest('[data-block-type="table"]') && type !== "table") continue;
 
+                // Prevent duplicates: Skip untyped ace-lines that are children of other typed blocks (Quote, Code, etc.)
+                // These are effectively "inner" blocks that the parent block's renderer already handles.
+                if (!type && block.classList.contains("ace-line")) {
+                    const parent = block.closest('[data-block-type]');
+                    if (parent && parent.getAttribute('data-block-type') !== 'page') {
+                        // console.log(`Skipping inner block ${blockId} because parent ${parent.getAttribute('data-block-type')} handles it.`);
+                        continue;
+                    }
+                }
+
                 if (type === "table") {
                     tableBuffer.push(block);
                     continue;
@@ -358,6 +368,72 @@ class FeishuAdapter extends BaseAdapter {
         return output;
     }
 
+    extractCodeBlock(block) {
+        // 1. Extract Language
+        let lang = "";
+        const langNode = block.querySelector('.code-block-header-btn span') ||
+            block.querySelector('.code-language') ||
+            block.querySelector('[class*="language-"]');
+        if (langNode) {
+            lang = langNode.textContent.trim().toLowerCase();
+            // Clean up common UI labels from language
+            if (["plain text", "plaintext", "代码块", "copy", "复制"].includes(lang)) {
+                lang = "";
+            }
+        }
+
+        // 2. Extract Content safely
+        let content = "";
+
+        // Strategy A: If we have clean .ace-line elements, strictly use them.
+        const lines = Array.from(block.querySelectorAll('.ace-line'));
+        if (lines.length > 0) {
+            content = lines.map(line => line.textContent).join('\n');
+        } else {
+            // Strategy B: Fallback
+            const clone = block.cloneNode(true);
+            const artifacts = clone.querySelectorAll(
+                '.code-block-header, .code-block-tool, .code-copy-btn, .code-language, [class*="header"]'
+            );
+            artifacts.forEach(el => el.remove());
+            const contentNode = clone.querySelector('.code-block-content') || clone.querySelector('code') || clone;
+            content = contentNode.innerText || contentNode.textContent;
+        }
+
+        content = content.trim();
+
+        // 3. Final cleanup - Aggressive validtion against UI text leaks
+        const linesOfContent = content.split('\n');
+        if (linesOfContent.length > 0) {
+            // Check first line specifically
+            let firstLine = linesOfContent[0].trim();
+
+            // Remove "代码块" prefix if present (e.g. "代码块\nfunction...")
+            if (firstLine.startsWith("代码块")) {
+                firstLine = firstLine.substring(3).trim();
+                linesOfContent[0] = firstLine; // Update first line
+
+                // If first line is now empty, remove it entirely
+                if (!firstLine) {
+                    linesOfContent.shift();
+                }
+            }
+
+            // Re-check first line after update
+            if (linesOfContent.length > 0) {
+                firstLine = linesOfContent[0].trim();
+                // Check for Language Name leak (e.g. "Plain Text\nfunction...")
+                if (lang && firstLine.toLowerCase() === lang) {
+                    linesOfContent.shift();
+                }
+            }
+
+            content = linesOfContent.join('\n').trim();
+        }
+
+        return { lang, content };
+    }
+
     async getBlockContent(block, format, options) {
         let type = block.getAttribute("data-block-type");
         if (!type && block.classList.contains("ace-line")) {
@@ -381,7 +457,9 @@ class FeishuAdapter extends BaseAdapter {
                 case "heading8": return `######## ${textContent}\n\n`;
                 case "heading9": return `######### ${textContent}\n\n`;
                 case "text": return `${textContent}\n\n`;
-                case "code": return "```\n" + block.textContent + "\n```\n\n";
+                case "code":
+                    const codeMd = this.extractCodeBlock(block);
+                    return "```" + codeMd.lang + "\n" + codeMd.content + "\n```\n\n";
                 case "quote": return `> ${textContent}\n\n`;
                 case "ordered": return `1. ${textContent}\n`;
                 case "bullet": return `- ${textContent}\n`;
@@ -408,7 +486,9 @@ class FeishuAdapter extends BaseAdapter {
                 case "heading2": return `<h2>${textContent}</h2>`;
                 case "heading3": return `<h3>${textContent}</h3>`;
                 case "text": return `<p>${textContent}</p>`;
-                case "code": return `<pre><code>${block.textContent}</code></pre>`;
+                case "code":
+                    const codeHtml = this.extractCodeBlock(block);
+                    return `<pre><code class="language-${codeHtml.lang}">${codeHtml.content}</code></pre>`;
                 case "quote": return `<blockquote>${textContent}</blockquote>`;
                 case "ordered": return `<li>${textContent}</li>`;
                 case "bullet": return `<li>${textContent}</li>`;

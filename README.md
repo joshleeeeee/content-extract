@@ -1,8 +1,8 @@
 # 🚀 OnlineDocExporter (在线文档助手)
 
-[![Version](https://img.shields.io/badge/version-v1.0-blue.svg)](https://github.com/your-repo)
+[![Version](https://img.shields.io/badge/version-v1.0-blue.svg)](https://github.com/joshleeeeee/online-doc-exporter)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Chrome%20%7C%20Edge%20%7C%20Lark-lightgrey.svg)](https://github.com/your-repo)
+[![Platform](https://img.shields.io/badge/platform-Chrome%20%7C%20Edge%20%7C%20Lark-lightgrey.svg)](https://github.com/joshleeeeee/online-doc-exporter)
 
 一款极致小巧、功能强大的在线文档转换与导出工具。支持将飞书/Lark 等文档（包括受保护无法复制的文档）一键转换为 Markdown 或富文本，并支持强大的批量下载功能。
 

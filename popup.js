@@ -109,7 +109,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (e) {
             console.error(e);
-            showToast('错误: ' + e.message);
+            if (e.message.includes("Could not establish connection") || e.message.includes("Receiving end does not exist")) {
+                showToast('插件已更新，请刷新页面后重试');
+            } else {
+                showToast('错误: ' + e.message);
+            }
         } finally {
             span.innerText = originalText;
             btn.style.opacity = '1';

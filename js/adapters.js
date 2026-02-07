@@ -144,25 +144,61 @@ class FeishuAdapter extends BaseAdapter {
     async extract() {
         // Helper to find the real scrollable container
         const getScrollContainer = () => {
-            // 1. Try generic heuristic: find parent of a block that has scroll
-            const block = document.querySelector('[data-block-type]');
-            if (block) {
-                let parent = block.parentElement;
-                while (parent && parent !== document.body) {
-                    const style = window.getComputedStyle(parent);
-                    const isScrollable = (style.overflowY === 'auto' || style.overflowY === 'scroll');
-                    const hasScroll = parent.scrollHeight > parent.clientHeight;
+            // 1. Priority: Specific Feishu containers (Old & New)
+            // Added more selectors for "Old" versions and different app modes
+            const candidates = [
+                '.scroll-container',
+                '.editor-wrapper',
+                '.render-content',
+                '.document-container',
+                '#doc-body',
+                '.ace-content-scroll-container',
+                '.drive-scroll-container',
+                '.editor-scroll',
+                '.note-content-container'
+            ];
 
-                    if (isScrollable && hasScroll) {
-                        return parent;
+            for (const selector of candidates) {
+                const el = document.querySelector(selector);
+                // Must have scrollable content space and be visible
+                if (el && el.scrollHeight > el.clientHeight && el.clientHeight > 100) {
+                    return el;
+                }
+            }
+
+            // 2. Generic Heuristic: Traverse up from content
+            // Support both old (data-block-type) and new (.ace-line) markers
+            const contentNode = document.querySelector('[data-block-type]') ||
+                document.querySelector('.ace-line') ||
+                document.querySelector('.note-content');
+
+            if (contentNode) {
+                let parent = contentNode.parentElement;
+                while (parent && parent !== document.body && parent !== document.documentElement) {
+                    const style = window.getComputedStyle(parent);
+                    // Check for standard scroll properties or "overlay" which is sometimes used
+                    const isScrollStyle = (style.overflowY === 'auto' || style.overflowY === 'scroll' || style.overflowY === 'overlay');
+                    const hasScrollSpace = parent.scrollHeight > parent.clientHeight; // Significant scroll diff
+
+                    if (hasScrollSpace && parent.clientHeight > 150) {
+                        // If explicitly scrollable or just looks like the main container
+                        if (isScrollStyle || parent.scrollHeight > parent.clientHeight + 50) {
+                            return parent;
+                        }
                     }
                     parent = parent.parentElement;
                 }
             }
 
-            // 2. Check document.scrollingElement (body/html)
-            if (document.scrollingElement.scrollHeight > document.scrollingElement.clientHeight) {
-                return document.scrollingElement;
+            // 3. Check Body/HTML specifically for window-level scroll
+            // Sometimes body has overflow:auto and handles scroll instead of window
+            if (document.body.scrollHeight > document.documentElement.clientHeight &&
+                window.getComputedStyle(document.body).overflowY !== 'hidden') {
+                return document.body;
+            }
+
+            if (document.documentElement.scrollHeight > document.documentElement.clientHeight) {
+                return document.documentElement; // Effectively window scroll
             }
 
             return null; // Fallback to window
@@ -268,7 +304,7 @@ class FeishuAdapter extends BaseAdapter {
 
         while (true) {
             // 1. Get current blocks
-            const blocks = Array.from(document.querySelectorAll("[data-block-type]"));
+            const blocks = Array.from(document.querySelectorAll("[data-block-type], .ace-line[data-node='true']"));
 
             // 2. Process them
             await processBatch(blocks);
@@ -323,7 +359,14 @@ class FeishuAdapter extends BaseAdapter {
     }
 
     async getBlockContent(block, format, options) {
-        const type = block.getAttribute("data-block-type");
+        let type = block.getAttribute("data-block-type");
+        if (!type && block.classList.contains("ace-line")) {
+            if (block.classList.contains("gallery-line") || block.querySelector(".new-gallery")) {
+                type = "image";
+            } else {
+                type = "text";
+            }
+        }
         const textContent = this.extractStyledText(block, format);
 
         if (format === "markdown") {
@@ -390,7 +433,8 @@ class FeishuAdapter extends BaseAdapter {
         let result = "";
         // Select both regular text spans and mention/link widgets that aren't standard text
         // Use a set to deduplicate if hierarchy overlaps (though usually they are siblings in ace-line)
-        const candidates = Array.from(element.querySelectorAll('.ace-line [data-string="true"], .ace-line .mention-doc, .ace-line .embed-inline-link'));
+        // Updated selector to support ace-line blocks directly (referencing descendants without .ace-line prefix constraint)
+        const candidates = Array.from(element.querySelectorAll('[data-string="true"], .mention-doc, .embed-inline-link'));
 
         // Filter out candidates that are inside other candidates to avoid double counting
         // (e.g. if we selected parent and child)

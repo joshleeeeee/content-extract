@@ -6,7 +6,16 @@ class ImageUtils {
      */
     static async urlToBase64(url) {
         try {
-            const response = await fetch(url, { referrerPolicy: 'no-referrer' });
+            // Add credentials: 'include' to allow fetching images that require cookies (like internal Feishu images)
+            const response = await fetch(url, { referrerPolicy: 'no-referrer', credentials: 'include' });
+
+            // Check if the response is actually an image (and not a JSON error e.g. "Login Required")
+            const contentType = response.headers.get("content-type");
+            if (contentType && (contentType.includes("application/json") || contentType.includes("text/html"))) {
+                console.warn("Base64 conversion skipped: Response is not an image (likely Auth error)", url);
+                return url; // Fallback to original URL
+            }
+
             const blob = await response.blob();
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();

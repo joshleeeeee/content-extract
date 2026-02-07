@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "OnlineDocExporter",
+  "version": "1.0",
+  "description": "Powerful tool to copy/export online documents (Feishu/Lark etc.) as Markdown or Rich Text.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "clipboardWrite",
+    "storage",
+    "unlimitedStorage"
+  ],
+  "background": {
+    "service_worker": "js/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.feishu.cn/*",
+        "*://*.larksuite.com/*"
+      ],
+      "js": [
+        "js/utils.js",
+        "js/adapters.js",
+        "js/main.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Feishu Copy Master"
+  }
+}

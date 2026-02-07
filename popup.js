@@ -1,0 +1,363 @@
+document.addEventListener('DOMContentLoaded', () => {
+    // --- Auto Versioning ---
+    const manifest = chrome.runtime.getManifest();
+    const versionEl = document.getElementById('version-text');
+    if (versionEl) versionEl.innerText = `v${manifest.version}`;
+
+    // --- Tabs Logic ---
+    const tabs = document.querySelectorAll('.tab-btn');
+    const panes = document.querySelectorAll('.tab-pane');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            panes.forEach(p => p.classList.remove('active'));
+
+            tab.classList.add('active');
+            const targetId = tab.getAttribute('data-target');
+            document.getElementById(targetId).classList.add('active');
+
+            // Refresh list if switching to manager
+            if (targetId === 'tab-manager') {
+                updateStatus();
+            }
+        });
+    });
+
+    // --- Single Copy Logic ---
+    const btnMarkdown = document.getElementById('btn-markdown');
+    const btnRich = document.getElementById('btn-rich');
+    const toggleBase64 = document.getElementById('toggle-base64');
+    const toast = document.getElementById('toast');
+
+    // Restore State
+    const saved = localStorage.getItem('feishu-copy-base64');
+    if (saved === 'true') toggleBase64.checked = true;
+
+    toggleBase64.addEventListener('change', () => {
+        localStorage.setItem('feishu-copy-base64', toggleBase64.checked);
+    });
+
+    const showToast = (msg) => {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+    };
+
+    const copyToClipboard = async (text, html = null) => {
+        try {
+            if (html) {
+                const blobHtml = new Blob([html], { type: 'text/html' });
+                const blobText = new Blob([text], { type: 'text/plain' });
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'text/html': blobHtml,
+                        'text/plain': blobText
+                    })
+                ]);
+            } else {
+                await navigator.clipboard.writeText(text);
+            }
+            return true;
+        } catch (err) {
+            console.error('Clipboard write failed', err);
+            return false;
+        }
+    };
+
+    const executeCopy = async (format) => {
+        const useBase64 = toggleBase64.checked;
+        const btn = format === 'markdown' ? btnMarkdown : btnRich;
+        const span = btn.querySelector('span');
+        const originalText = span.innerText;
+
+        span.innerText = '正在处理...';
+        btn.style.opacity = '0.7';
+        btn.disabled = true;
+
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab) throw new Error('找不到活动标签页');
+
+            const response = await chrome.tabs.sendMessage(tab.id, {
+                action: 'EXTRACT_CONTENT',
+                format: format,
+                options: { useBase64 }
+            });
+
+            if (response && response.success) {
+                if (format === 'markdown') {
+                    await copyToClipboard(response.content);
+                    showToast('Markdown 已复制');
+                } else {
+                    const textFallback = response.content.replace(/<[^>]+>/g, '');
+                    await copyToClipboard(textFallback, response.content);
+                    showToast('富文本已复制');
+                }
+            } else {
+                throw new Error(response.error || '未知错误');
+            }
+
+        } catch (e) {
+            console.error(e);
+            showToast('错误: ' + e.message);
+        } finally {
+            span.innerText = originalText;
+            btn.style.opacity = '1';
+            btn.disabled = false;
+        }
+    };
+
+    btnMarkdown.addEventListener('click', () => executeCopy('markdown'));
+    btnRich.addEventListener('click', () => executeCopy('html'));
+
+    // --- Batch & Manager Logic ---
+    const btnScan = document.getElementById('btn-scan');
+    const btnBatchStart = document.getElementById('btn-batch-start');
+    const btnDownloadZip = document.getElementById('btn-download-zip');
+    const btnClearAll = document.getElementById('btn-clear-all');
+
+    const listContainer = document.getElementById('batch-list');
+    const managerList = document.getElementById('manager-list');
+    const checkAll = document.getElementById('batch-check-all');
+    const countLabel = document.getElementById('batch-count');
+
+    const progressContainer = document.getElementById('batch-progress-container');
+    const progressFill = document.getElementById('batch-progress-fill');
+    const statusText = document.getElementById('batch-status-text');
+
+    let scannedLinks = [];
+    let pollInterval = null;
+
+    // --- Actions ---
+    btnScan.addEventListener('click', async () => {
+        btnScan.disabled = true;
+        const scanSpan = btnScan.querySelector('span');
+        scanSpan.innerText = '正在扫描...';
+        listContainer.innerHTML = '<div class="empty-state">正在扫描页面内容...</div>';
+
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab) throw new Error('找不到活动标签页');
+
+            const response = await chrome.tabs.sendMessage(tab.id, { action: 'SCAN_LINKS' });
+
+            if (response && response.success) {
+                scannedLinks = response.links || [];
+                renderBatchList();
+            } else {
+                listContainer.innerHTML = '<div class="empty-state">未发现文档链接。</div>';
+            }
+        } catch (e) {
+            console.error(e);
+            listContainer.innerHTML = '<div class="empty-state">扫描失败: ' + e.message + '</div>';
+        } finally {
+            btnScan.disabled = false;
+            btnScan.querySelector('span').innerText = '扫描链接';
+        }
+    });
+
+    const renderBatchList = () => {
+        listContainer.innerHTML = '';
+        if (scannedLinks.length === 0) {
+            listContainer.innerHTML = '<div class="empty-state">未找到相关飞书文档链接。</div>';
+            countLabel.innerText = '找到 0 个';
+            btnBatchStart.disabled = true;
+            return;
+        }
+
+        countLabel.innerText = `找到 ${scannedLinks.length} 个`;
+        btnBatchStart.disabled = false;
+
+        scannedLinks.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'batch-item';
+            div.innerHTML = `
+                <label>
+                    <input type="checkbox" class="batch-checkbox" value="${index}" checked>
+                    <span class="batch-item-text" title="${item.url}">${item.title}</span>
+                </label>
+            `;
+            listContainer.appendChild(div);
+        });
+    };
+
+    checkAll.addEventListener('change', () => {
+        const checkboxes = document.querySelectorAll('.batch-checkbox');
+        checkboxes.forEach(cb => cb.checked = checkAll.checked);
+    });
+
+    btnBatchStart.addEventListener('click', () => {
+        const checkboxes = document.querySelectorAll('.batch-checkbox:checked');
+        if (checkboxes.length === 0) {
+            showToast('请先选择要抓取的文档');
+            return;
+        }
+
+        const selectedItems = Array.from(checkboxes).map(cb => ({
+            url: scannedLinks[cb.value].url,
+            title: scannedLinks[cb.value].title
+        }));
+
+        chrome.runtime.sendMessage({
+            action: 'START_BATCH_PROCESS',
+            items: selectedItems,
+            format: 'markdown'
+        }, (res) => {
+            if (res && res.success) {
+                startPolling();
+                showToast('已加入后台抓取队列');
+            } else {
+                showToast('启动任务失败');
+            }
+        });
+    });
+
+    btnClearAll.addEventListener('click', () => {
+        if (confirm('确定要清空所有已下载的历史记录吗？正在进行的任务也会停止。')) {
+            chrome.runtime.sendMessage({ action: 'CLEAR_BATCH_RESULTS' }, () => {
+                updateStatus();
+            });
+        }
+    });
+
+    // --- Status & Rendering ---
+    const updateStatus = () => {
+        chrome.runtime.sendMessage({ action: 'GET_BATCH_STATUS' }, (res) => {
+            if (!res) return;
+            const { isProcessing, queueLength, results } = res;
+
+            // Update Batch Tab
+            if (isProcessing || queueLength > 0) {
+                progressContainer.style.display = 'block';
+                const totalFinished = results.length;
+                statusText.innerText = `进度: 已完成 ${totalFinished} | 待抓取 ${queueLength}`;
+                const percent = (totalFinished + queueLength) > 0 ? (totalFinished / (totalFinished + queueLength)) * 100 : 0;
+                progressFill.style.width = Math.min(100, percent) + '%';
+                btnBatchStart.disabled = true;
+                btnScan.disabled = true;
+            } else {
+                progressContainer.style.display = 'none';
+                btnBatchStart.disabled = false;
+                btnScan.disabled = false;
+            }
+
+            // Update Manager Tab
+            renderManagerList(results);
+            btnDownloadZip.disabled = !results.some(r => r.status === 'success');
+        });
+    };
+
+    const renderManagerList = (results) => {
+        managerList.innerHTML = '';
+        if (results.length === 0) {
+            managerList.innerHTML = `
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" width="48" height="48" style="margin-bottom:12px; opacity:0.2">
+                        <path d="M19 11H5M19 11C20.1046 11 21 11.8954 21 13V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V13C3 11.8954 3.89543 11 5 11M19 11V9C19 7.89543 18.1046 7 17 7M5 11V9C5 7.89543 5.89543 7 7 7M17 7V5C17 3.89543 16.1046 3 15 3H9C7.89543 3 7 3.89543 7 5V7M17 7H7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>下载中心暂无记录</span>
+                </div>`;
+            return;
+        }
+
+        // Sort by timestamp desc
+        const sorted = [...results].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+        sorted.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'batch-item';
+            div.style.justifyContent = 'space-between';
+
+            const isSuccess = item.status === 'success';
+            const statusIcon = isSuccess ?
+                `<svg viewBox="0 0 24 24" fill="none" width="16" height="16" style="margin-right:8px"><path d="M22 11.08V12C21.9988 14.1564 21.3005 16.2547 20.0093 17.9888C18.7182 19.7228 16.9033 20.9972 14.8354 21.6226C12.7674 22.2479 10.5501 22.2031 8.51131 21.4939C6.47257 20.7848 4.7182 19.4471 3.51187 17.6835C2.30555 15.9199 1.71181 13.8214 1.81596 11.7019C1.92011 9.58232 2.71677 7.55024 4.08502 5.9103C5.45328 4.27035 7.31961 3.11196 9.40017 2.61099C11.4807 2.11003 13.6654 2.2929 15.63 3.13" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 4L12 14.01L9 11.01" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>` :
+                `<svg viewBox="0 0 24 24" fill="none" width="16" height="16" style="margin-right:8px"><circle cx="12" cy="12" r="10" stroke="#ef4444" stroke-width="2"/><line x1="15" y1="9" x2="9" y2="15" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/><line x1="9" y1="9" x2="15" y2="15" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/></svg>`;
+
+            const statusColor = isSuccess ? '#1f2329' : '#ef4444';
+
+            div.innerHTML = `
+                <div style="display:flex; align-items:center; flex:1; min-width:0;">
+                    ${statusIcon}
+                    <span class="batch-item-text" style="color:${statusColor}">${item.title}</span>
+                </div>
+                <div class="manager-actions">
+                    ${isSuccess ? `
+                    <button class="btn-item-download" data-url="${item.url}" title="下载">
+                        <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>` : ''}
+                    <button class="btn-item-delete" data-url="${item.url}" title="删除">
+                        <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 6H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                </div>
+            `;
+            managerList.appendChild(div);
+        });
+
+        // Delegate clicks
+        managerList.querySelectorAll('.btn-item-download').forEach(btn => {
+            btn.onclick = () => {
+                const url = btn.getAttribute('data-url');
+                const doc = results.find(r => r.url === url);
+                if (doc) downloadFile(doc.title, doc.content);
+            };
+        });
+
+        managerList.querySelectorAll('.btn-item-delete').forEach(btn => {
+            btn.onclick = () => {
+                const url = btn.getAttribute('data-url');
+                chrome.runtime.sendMessage({ action: 'DELETE_BATCH_ITEM', url }, () => updateStatus());
+            };
+        });
+    };
+
+    const downloadFile = (title, content) => {
+        const filename = title.replace(/[\\/:*?"<>|]/g, "_") + ".md";
+        const blob = new Blob([content], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    btnDownloadZip.addEventListener('click', () => {
+        chrome.runtime.sendMessage({ action: 'GET_BATCH_STATUS' }, async (res) => {
+            if (!res || !res.results) return;
+            const zip = new JSZip();
+            let count = 0;
+            res.results.forEach(item => {
+                if (item.status === 'success') {
+                    const filename = item.title.replace(/[\\/:*?"<>|]/g, "_") + ".md";
+                    zip.file(filename, item.content);
+                    count++;
+                }
+            });
+            if (count === 0) {
+                showToast('没有抓取成功的文件');
+                return;
+            }
+            const blob = await zip.generateAsync({ type: "blob" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `飞书批量导出_${new Date().toISOString().slice(0, 10)}.zip`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    });
+
+    const startPolling = () => {
+        if (pollInterval) clearInterval(pollInterval);
+        updateStatus(); // Initial update
+        pollInterval = setInterval(updateStatus, 2000);
+    };
+
+    // --- Legal Disclaimer Alert ---
+    const disclaimerLink = document.getElementById('disclaimer-link');
+    disclaimerLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        alert('【系统免责声明】\n\n1. 本工具仅限个人学习备份与学术研究使用，严禁商业用途。\n2. 使用本工具抓取受限文档可能违反平台协议，使用者需自行承担由此产生的合规性风险或账号封号风险。\n3. 开发者不对数据丢失或法律纠纷负责。\n\n如您继续使用，即表示您已阅读并同意上述所有条款。');
+    });
+});

@@ -1,0 +1,79 @@
+# 🚀 OnlineDocExporter (在线文档助手)
+
+[![Version](https://img.shields.io/badge/version-v1.0-blue.svg)](https://github.com/your-repo)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Chrome%20%7C%20Edge%20%7C%20Lark-lightgrey.svg)](https://github.com/your-repo)
+
+一款极致小巧、功能强大的在线文档转换与导出工具。支持将飞书/Lark 等文档（包括受保护无法复制的文档）一键转换为 Markdown 或富文本，并支持强大的批量下载功能。
+
+---
+
+## ⚠️ 免责声明 (Legal Disclaimer)
+
+**在下载、安装或使用本软件前，请务必仔细阅读以下条款：**
+
+1.  **用途限制**：本插件仅供**技术研究、学术探讨以及个人备份**自用。请勿将本插件用于任何商业用途、大规模非法抓取、侵犯版权或其他违反法律法规的行为。
+2.  **合规性**：用户在使用本插件时，必须遵守所在地区法律法规及对应文档平台（如飞书、Lark等）的服务条款。由此产生的任何个人账号封禁、合规性风险或法律责任，均由**使用者自行承担**，开发者概不负责。
+3.  **不提供担保**：开发者不对本软件的稳定性、准确性或安全性提供任何形式的担保。在任何情况下，开发者均不对因使用本软件而导致的任何数据丢失、法律纠纷或其他损害承担责任。
+4.  **无版权侵犯意图**：本软件设计初衷是辅助用户进行个人知识管理。如果相关权利人认为本项目存在权益侵犯，请及时联系开发者，我们将配合进行处理。
+
+**English Summary**: This extension is for educational and personal research purposes ONLY. By using this tool, you assume all risks and liabilities. The developer is NOT responsible for any account bans, data loss, or legal consequences resulting from the use of this project. Use it at your own risk.
+
+---
+
+## ✨ 核心特性
+
+- **🚀 极速导出**: 一键将当前文档转换为 Markdown 或富文本。
+- **📦 批量抓取**: 自动扫描页面中的文档链接，支持批量排队抓取，告别繁琐的手动操作。
+- **⚡ 下载中心**: 内置下载管理，支持将抓取的文档打包为 ZIP 压缩包分发，支持历史记录持久化。
+- **🖼️ 智能图片处理**:
+  - **Base64 转换**: 可选将远程图片转码为内联 Base64，实现真正的离线阅读与文档迁移。
+  - **样式保留**: 完美支持图片标题、表格内嵌套图片等复杂布局。
+- **🎨 现代精美 UI**: 采用现代设计语言，支持微交互，界面清爽且功能直观。
+
+## 📸 界面预览
+
+<p align="center">
+  <img src="images/preview1.png" width="250" alt="单页复制" />
+  <img src="images/preview2.png" width="250" alt="批量抓取" />
+  <img src="images/preview3.png" width="250" alt="下载中心" />
+</p>
+
+## 🚀 快速上手
+
+### 安装方法
+1. 下载本项目或 Clone 到本地。
+2. 打开 Chrome 浏览器，进入 `chrome://extensions/`。
+3. 开启右上角的 **"开发者模式"**。
+4. 点击 **"加载解压的扩展程序"**，选择本项目所在的文件夹。
+
+### 使用指南
+1. **单页复制**:
+   - 打开飞书/Lark 文档页面。
+   - 点击插件图标，在“单页复制”面板选择 Markdown 或 富文本。
+2. **批量抓取**:
+   - 在包含多个文档链接的页面（如知识库首页、列表页）点击“批量抓取”。
+   - 点击“扫描链接”，勾选目标文档后点击“开始抓取”。
+3. **下载管理**:
+   - 进入“下载中心”，查看抓取进度。
+   - 抓取完成后可单独下载或点击“打包下载”获取所有文件。
+
+## 🗺️ 未来规划 (Roadmap)
+
+- [x] **批量抓取与打包下载** (已上线)
+- [x] **图片 Base64 转码** (已上线)
+- [ ] **多平台兼容**: 扩展支持 语雀、钉钉文档、Notion 等。
+- [ ] **自动图床上传**: 支持将文档图片自动上传至自定义图床（如 PicGo, GitHub, OSS），解决 Markdown 图片鉴权失效问题。
+- [ ] **自定义模版**: 允许用户自定义导出的 Markdown 样式与 Frontmatter。
+
+## 🛠️ 技术内幕
+
+- **Manifest**: Chromium V3
+- **JS 核心**: 原生 ES6+，无框架依赖，轻量快速
+- **样式**: CSS 变量驱动的现代设计系统
+- **库支持**: [JSZip](https://stuk.github.io/jszip/) 用于批量文件打包
+
+## 🤝 贡献与反馈
+
+欢迎提交 Issue 或 Pull Request 来改进这个项目！
+

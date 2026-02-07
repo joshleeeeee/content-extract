@@ -1,0 +1,198 @@
+@import url("popup_main.css");
+
+/* CSS for Batch Tab UI */
+
+/* Tabs */
+.feishu-copy-tabs {
+    display: flex;
+    border-bottom: 1px solid #e1e4e8;
+    margin-bottom: 15px;
+}
+
+.tab-btn {
+    flex: 1;
+    text-align: center;
+    padding: 10px 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #646a73;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    background: #f5f6f7;
+    border-radius: 4px 4px 0 0;
+}
+
+.tab-btn.active {
+    color: #3370ff;
+    border-bottom: 2px solid #3370ff;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+/* Batch Controls */
+.batch-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.feishu-copy-btn.small {
+    padding: 6px 12px;
+    font-size: 13px;
+    height: 32px;
+}
+
+.batch-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 8px;
+    padding: 0 4px;
+}
+
+.batch-list {
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    height: 200px;
+    overflow-y: auto;
+    background: #f9f9f9;
+    padding: 5px;
+}
+
+.batch-item {
+    display: flex;
+    align-items: center;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    font-size: 13px;
+}
+
+.batch-item label {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    cursor: pointer;
+}
+
+.batch-item input {
+    margin-right: 8px;
+}
+
+.batch-item-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+}
+
+.progress-bar {
+    height: 6px;
+    background: #eee;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 5px;
+}
+
+.progress-bar .fill {
+    height: 100%;
+    background: #3370ff;
+    width: 0%;
+    transition: width 0.3s;
+}
+
+/* Manager Tab */
+.manager-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.manager-controls .feishu-copy-btn {
+    flex: 1;
+}
+
+.manager-list {
+    border: 1px solid #ebedf0;
+    border-radius: 10px;
+    height: 220px;
+    overflow-y: auto;
+    background: #f8fafc;
+    padding: 8px;
+}
+
+/* Redefine batch-item for better look in manager */
+.batch-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    background: #fff;
+    border: 1px solid #eef2f6;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.batch-item:hover {
+    border-color: #d1d9e6;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.manager-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.manager-actions button {
+    background: #f1f3f5;
+    border: none;
+    border-radius: 4px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.manager-actions button:hover {
+    background: #e9ecef;
+}
+
+.manager-actions .btn-item-delete:hover {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+.manager-actions .btn-item-download:hover {
+    background: #dcfce7;
+    color: #22c55e;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #8f959e;
+    font-size: 13px;
+    text-align: center;
+}

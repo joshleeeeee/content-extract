@@ -1,0 +1,181 @@
+/* Popup Container */
+body {
+    width: 320px;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #fff;
+    color: #1f2329;
+    margin: 0;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eff0f1;
+}
+
+.logo-icon {
+    background: linear-gradient(135deg, #3370ff, #1c4cb8);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    margin-right: 12px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 8px rgba(51, 112, 255, 0.2);
+}
+
+.header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2329;
+    letter-spacing: -0.5px;
+}
+
+/* Toggle Switch */
+.feishu-copy-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    font-size: 14px;
+    color: #1f2329;
+    font-weight: 500;
+    user-select: none;
+    margin-bottom: 20px;
+    background: #f5f6f7;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+}
+
+.feishu-copy-toggle:hover {
+    background: #eff0f1;
+}
+
+.feishu-copy-toggle input {
+    display: none;
+}
+
+.feishu-copy-toggle-slider {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    background-color: #dee0e3;
+    border-radius: 22px;
+    transition: 0.3s;
+}
+
+.feishu-copy-toggle-slider::before {
+    content: "";
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    border-radius: 50%;
+    transition: 0.3s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.feishu-copy-toggle input:checked+.feishu-copy-toggle-slider {
+    background-color: #3370ff;
+}
+
+.feishu-copy-toggle input:checked+.feishu-copy-toggle-slider::before {
+    transform: translateX(18px);
+}
+
+/* Button Container */
+.feishu-copy-btn-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Buttons */
+.feishu-copy-btn {
+    background: #3370ff;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(51, 112, 255, 0.1);
+}
+
+.feishu-copy-btn:disabled {
+    background: #cbd5e0;
+    cursor: not-allowed;
+    box-shadow: none;
+    opacity: 0.7;
+}
+
+.feishu-copy-btn:not(:disabled):hover {
+    background: #2458d6;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(51, 112, 255, 0.2);
+}
+
+.feishu-copy-btn:not(:disabled):active {
+    background: #1c4cb8;
+    transform: translateY(0);
+}
+
+.feishu-copy-btn.secondary {
+    background: #fff;
+    color: #4a5568;
+    border: 1px solid #dee0e3;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.feishu-copy-btn.secondary:hover {
+    background: #f5f6f7;
+    border-color: #cbd5e0;
+    color: #1f2329;
+}
+
+/* Toast */
+.feishu-copy-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(31, 35, 41, 0.95);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 24px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+}
+
+.feishu-copy-toast.show {
+    opacity: 1;
+    top: 40px;
+}
+
+.footer {
+    margin-top: 24px;
+    font-size: 12px;
+    color: #8f959e;
+    text-align: center;
+    border-top: 1px solid #eff0f1;
+    padding-top: 16px;
+}

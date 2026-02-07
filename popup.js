@@ -58,6 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnRich = document.getElementById('btn-rich');
     const toggleBase64 = document.getElementById('toggle-base64');
     const toggleForeground = document.getElementById('toggle-foreground');
+    const inputScrollSpeed = document.getElementById('input-scroll-speed');
+    const scrollSpeedValue = document.getElementById('scroll-speed-value');
     const toast = document.getElementById('toast');
 
     // Restore State
@@ -67,12 +69,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedForeground = localStorage.getItem('feishu-copy-foreground');
     if (savedForeground === 'true') toggleForeground.checked = true;
 
+    const savedScrollSpeed = localStorage.getItem('feishu-copy-scroll-speed');
+    if (savedScrollSpeed) {
+        inputScrollSpeed.value = savedScrollSpeed;
+        scrollSpeedValue.innerText = (parseInt(savedScrollSpeed) / 1000).toFixed(1) + 's';
+    }
+
     toggleBase64.addEventListener('change', () => {
         localStorage.setItem('feishu-copy-base64', toggleBase64.checked);
     });
 
     toggleForeground.addEventListener('change', () => {
         localStorage.setItem('feishu-copy-foreground', toggleForeground.checked);
+    });
+
+    inputScrollSpeed.addEventListener('input', () => {
+        scrollSpeedValue.innerText = (parseInt(inputScrollSpeed.value) / 1000).toFixed(1) + 's';
+    });
+
+    inputScrollSpeed.addEventListener('change', () => {
+        localStorage.setItem('feishu-copy-scroll-speed', inputScrollSpeed.value);
     });
 
     const showToast = (msg) => {
@@ -104,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const executeCopy = async (format) => {
         const useBase64 = toggleBase64.checked;
+        const scrollWaitTime = parseInt(inputScrollSpeed.value) || 1500;
         const btn = format === 'markdown' ? btnMarkdown : btnRich;
         const span = btn.querySelector('span');
         const originalText = span.innerText;
@@ -119,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await chrome.tabs.sendMessage(tab.id, {
                 action: 'EXTRACT_CONTENT',
                 format: format,
-                options: { useBase64 }
+                options: { useBase64, scrollWaitTime }
             });
 
             if (response && response.success) {
@@ -263,7 +280,8 @@ document.addEventListener('DOMContentLoaded', () => {
             format: 'markdown',
             options: {
                 useBase64: toggleBase64.checked,
-                foreground: toggleForeground.checked
+                foreground: toggleForeground.checked,
+                scrollWaitTime: parseInt(inputScrollSpeed.value) || 1500
             }
         }, (res) => {
             if (res && res.success) {

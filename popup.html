@@ -176,6 +176,21 @@
                     <span class="feishu-copy-toggle-slider"></span>
                 </label>
             </div>
+
+            <div class="settings-item" style="display:block;">
+                <div class="settings-label" style="margin-bottom:8px;">
+                    <div class="settings-title">滚动抓取速度 (等待间隔)</div>
+                    <div class="settings-desc">调节滚动后的等待时间。越慢越稳定，越快越容易漏内容。</div>
+                </div>
+                <div style="display:flex; align-items:center; gap: 10px;">
+                    <span style="font-size:12px; color:#8f959e;">快 (0.5s)</span>
+                    <input type="range" id="input-scroll-speed" min="500" max="3000" step="100" value="1500"
+                        style="flex:1;">
+                    <span style="font-size:12px; color:#8f959e;">慢 (3.0s)</span>
+                    <span id="scroll-speed-value"
+                        style="font-size:13px; font-weight:600; min-width:45px; text-align:right;">1.5s</span>
+                </div>
+            </div>
         </div>
     </div>
 

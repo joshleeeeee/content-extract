@@ -342,7 +342,8 @@ class FeishuAdapter extends BaseAdapter {
             scrollTo(nextScroll);
 
             // 5. Wait for scroll/load
-            await new Promise(r => setTimeout(r, 1500)); // Wait 1.5s for lazy load
+            const waitTime = this.options.scrollWaitTime || 1500;
+            await new Promise(r => setTimeout(r, waitTime));
 
             // Check if we actually moved (if scroll stuck, we hit bottom)
             const newScroll = getCurrentScroll();

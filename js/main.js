@@ -1,23 +1,32 @@
 class App {
     static init() {
+        if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.onMessage) {
+            console.warn('Feishu Copy Extension: chrome.runtime.onMessage is not available. This content script might be orphaned or running in an invalid context.');
+            return;
+        }
+
         console.log('Feishu Copy Extension: Listener Initialized');
 
-        // Listen for messages from popup
-        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-            if (request.action === 'EXTRACT_CONTENT') {
-                App.handleExtraction(request.format, request.options)
-                    .then(content => sendResponse({ success: true, content }))
-                    .catch(error => sendResponse({ success: false, error: error.message }));
+        try {
+            // Listen for messages from popup
+            chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+                if (request.action === 'EXTRACT_CONTENT') {
+                    App.handleExtraction(request.format, request.options)
+                        .then(content => sendResponse({ success: true, content }))
+                        .catch(error => sendResponse({ success: false, error: error.message }));
 
-                return true;
-            }
-            if (request.action === 'SCAN_LINKS') {
-                App.handleScan()
-                    .then(links => sendResponse({ success: true, links }))
-                    .catch(error => sendResponse({ success: false, error: error.message }));
-                return true;
-            }
-        });
+                    return true;
+                }
+                if (request.action === 'SCAN_LINKS') {
+                    App.handleScan()
+                        .then(links => sendResponse({ success: true, links }))
+                        .catch(error => sendResponse({ success: false, error: error.message }));
+                    return true;
+                }
+            });
+        } catch (e) {
+            console.error('Feishu Copy Extension: Failed to add listener', e);
+        }
     }
 
     static async handleScan() {

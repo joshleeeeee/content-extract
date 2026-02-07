@@ -34,9 +34,9 @@
 ## 📸 界面预览
 
 <p align="center">
-  <img src="images/preview1.png" width="250" alt="单页复制" />
-  <img src="images/preview2.png" width="250" alt="批量抓取" />
-  <img src="images/preview3.png" width="250" alt="下载中心" />
+  <img src="extension/images/preview1.png" width="250" alt="单页复制" />
+  <img src="extension/images/preview2.png" width="250" alt="批量抓取" />
+  <img src="extension/images/preview3.png" width="250" alt="下载中心" />
 </p>
 
 ## 🚀 快速上手

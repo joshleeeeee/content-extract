@@ -92,7 +92,8 @@ body {
     font-weight: 500;
     color: #646a73;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    border-bottom: 2px solid transparent;
 }
 
 .tab-btn:hover {
@@ -102,7 +103,7 @@ body {
 
 .tab-btn.active {
     color: #3370ff;
-    border-bottom: 2px solid #3370ff;
+    border-bottom-color: #3370ff;
 }
 
 .tab-pane {
@@ -111,6 +112,19 @@ body {
 
 .tab-pane.active {
     display: block;
+    animation: tab-fade-in 0.25s ease-out;
+}
+
+@keyframes tab-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Batch Controls */

@@ -73,6 +73,7 @@ export const content = {
             brandDescription: "Open-source tool to liberate your documentation. Built with precision and care.",
             privacy: "Privacy Policy",
             terms: "Terms of Service",
+            sponsor: "Sponsor",
             rights: "OnlineDocExporter. All rights reserved. Not affiliated with Feishu or Lark.",
             disclaimer: {
                 title: "Legal Disclaimer",
@@ -153,6 +154,7 @@ export const content = {
             brandDescription: "开源工具，旨在解放你的文档数据。用心打造。",
             privacy: "隐私政策",
             terms: "服务条款",
+            sponsor: "赞助作者",
             rights: "OnlineDocExporter. 保留所有权利. 本项目与飞书或 Lark 无任何关联.",
             disclaimer: {
                 title: "免责声明",

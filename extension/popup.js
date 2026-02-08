@@ -737,4 +737,12 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         alert('【系统免责声明】\n\n1. 本工具仅限个人学习备份与学术研究使用，严禁商业用途。\n2. 使用本工具抓取受限文档可能违反平台协议，使用者需自行承担由此产生的合规性风险或账号封号风险。\n3. 开发者不对数据丢失或法律纠纷负责。\n\n如您继续使用，即表示您已阅读并同意上述所有条款。');
     });
+
+    const coffeeLink = document.getElementById('coffee-link');
+    if (coffeeLink) {
+        coffeeLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            chrome.tabs.create({ url: 'https://github.com/joshleeeeee/online-doc-exporter#%E8%AF%B7%E6%88%91%E5%96%9D%E6%9D%AF%E5%92%96%E5%95%A1-sponsor' });
+        });
+    }
 });

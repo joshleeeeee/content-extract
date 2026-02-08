@@ -83,6 +83,20 @@
 - **样式**: CSS 变量驱动的现代设计系统
 - **库支持**: [JSZip](https://stuk.github.io/jszip/) 用于批量文件打包
 
+## ☕ 请我喝杯咖啡 (Sponsor)
+
+如果这个项目帮助你节省了时间，不妨请作者喝杯咖啡，鼓励他继续维护！
+
+<details>
+  <summary><strong>🥤 点击请我喝杯咖啡 / Click to Sponsor (WeChat Pay)</strong></summary>
+  <br>
+  <div align="center">
+    <img src="website/public/images/buy-me-coffee.png" width="260" alt="WeChat Pay" style="border-radius: 10px;" />
+    <br><br>
+    <i>感谢您的支持，這將成为我持续维护的动力！</i>
+  </div>
+</details>
+
 ## 🤝 贡献与反馈
 
 欢迎提交 Issue 或 Pull Request 来改进这个项目！

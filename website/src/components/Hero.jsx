@@ -73,7 +73,7 @@ const Hero = ({ lang }) => {
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.5, type: "spring" }}
-                    className="mt-12 relative max-w-md mx-auto"
+                    className="mt-12 relative max-w-xs mx-auto"
                 >
                     <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl blur opacity-20 animate-pulse"></div>
                     <div className="relative rounded-2xl overflow-hidden border border-slate-700 shadow-2xl bg-slate-900/50">

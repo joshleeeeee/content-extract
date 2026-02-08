@@ -26,7 +26,7 @@ const Showcase = ({ lang }) => {
                     <motion.div
                         initial={{ opacity: 0, x: -50 }}
                         whileInView={{ opacity: 1, x: 0 }}
-                        className="order-2 md:order-1 relative group max-w-md mx-auto"
+                        className="order-2 md:order-1 relative group max-w-xs mx-auto"
                     >
                         <div className="absolute -inset-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition-opacity"></div>
                         <img
@@ -88,7 +88,7 @@ const Showcase = ({ lang }) => {
                     <motion.div
                         initial={{ opacity: 0, x: 50 }}
                         whileInView={{ opacity: 1, x: 0 }}
-                        className="relative group max-w-md mx-auto"
+                        className="relative group max-w-xs mx-auto"
                     >
                         <div className="absolute -inset-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition-opacity"></div>
                         <img
@@ -104,7 +104,7 @@ const Showcase = ({ lang }) => {
                     <motion.div
                         initial={{ opacity: 0, x: -50 }}
                         whileInView={{ opacity: 1, x: 0 }}
-                        className="order-2 md:order-1 relative group max-w-md mx-auto"
+                        className="order-2 md:order-1 relative group max-w-xs mx-auto"
                     >
                         <div className="absolute -inset-2 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition-opacity"></div>
                         <img

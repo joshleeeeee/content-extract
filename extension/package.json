@@ -1,0 +1,28 @@
+{
+    "name": "onlinedocexporter-extension",
+    "version": "1.4.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vue-tsc && vite build"
+    },
+    "dependencies": {
+        "jszip": "^3.10.1",
+        "pinia": "^3.0.4",
+        "vue": "^3.5.27"
+    },
+    "devDependencies": {
+        "@crxjs/vite-plugin": "^2.0.0-beta.33",
+        "@tailwindcss/postcss": "^4.1.18",
+        "@types/chrome": "^0.1.36",
+        "@types/jszip": "^3.4.0",
+        "@vitejs/plugin-vue": "^6.0.4",
+        "autoprefixer": "^10.4.24",
+        "postcss": "^8.5.6",
+        "tailwindcss": "^4.1.18",
+        "typescript": "^5.9.3",
+        "vite": "^7.3.1",
+        "vue-tsc": "^3.2.4"
+    }
+}

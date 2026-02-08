@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const oldUpload = localStorage.getItem('feishu-copy-upload-image') === 'true';
         if (oldUpload) selectImageMode.value = 'minio';
         else if (oldBase64) selectImageMode.value = 'base64';
-        else selectImageMode.value = 'original';
+        else selectImageMode.value = 'local';
     }
 
     // Set initial visibility
@@ -212,13 +212,47 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (response && response.success) {
-                if (format === 'markdown') {
-                    await copyToClipboard(response.content);
-                    showToast('Markdown 已复制');
+                // Handle "local" mode: Download as ZIP
+                if (imageMode === 'local') {
+                    const zip = new JSZip();
+                    const safeTitle = (response.title || 'document').replace(/[\\/:*?"<>|]/g, "_");
+                    const ext = format === 'markdown' ? '.md' : '.html';
+                    const filename = safeTitle + ext;
+
+                    // Add imagesfolder if images exist
+                    if (response.images && response.images.length > 0) {
+                        const imgFolder = zip.folder("images");
+                        response.images.forEach(img => {
+                            if (img.base64 && img.base64.includes(',')) {
+                                const base64Data = img.base64.split(',')[1];
+                                imgFolder.file(img.filename, base64Data, { base64: true });
+                            }
+                        });
+                    }
+
+                    // Add content file
+                    zip.file(filename, response.content);
+
+                    // Generate download
+                    const blob = await zip.generateAsync({ type: "blob" });
+                    const dlUrl = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = dlUrl;
+                    a.download = `${safeTitle}.zip`;
+                    a.click();
+                    URL.revokeObjectURL(dlUrl);
+
+                    showToast('已打包下载 ZIP');
                 } else {
-                    const textFallback = response.content.replace(/<[^>]+>/g, '');
-                    await copyToClipboard(textFallback, response.content);
-                    showToast('富文本已复制');
+                    // Original behavior: Copy to Clipboard
+                    if (format === 'markdown') {
+                        await copyToClipboard(response.content);
+                        showToast('Markdown 已复制');
+                    } else {
+                        const textFallback = response.content.replace(/<[^>]+>/g, '');
+                        await copyToClipboard(textFallback, response.content);
+                        showToast('富文本已复制');
+                    }
                 }
             } else {
                 throw new Error(response.error || '未知错误');

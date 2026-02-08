@@ -15,9 +15,9 @@ class App {
                         .then(result => {
                             // Support returning object { content, images } or just string
                             if (typeof result === 'object' && result.content) {
-                                sendResponse({ success: true, ...result });
+                                sendResponse({ success: true, title: document.title, ...result });
                             } else {
-                                sendResponse({ success: true, content: result });
+                                sendResponse({ success: true, title: document.title, content: result });
                             }
                         })
                         .catch(error => sendResponse({ success: false, error: error.message }));

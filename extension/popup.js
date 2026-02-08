@@ -307,6 +307,18 @@ document.addEventListener('DOMContentLoaded', () => {
         listContainer.innerHTML = '<div class="empty-state">正在扫描页面内容...</div>';
 
         try {
+            // 1. Get existing records first
+            const batchStatus = await new Promise(resolve => {
+                chrome.runtime.sendMessage({ action: 'GET_BATCH_STATUS' }, resolve);
+            });
+            const downloadedUrls = new Set();
+            if (batchStatus && batchStatus.results) {
+                batchStatus.results.forEach(r => {
+                    if (r.status === 'success') downloadedUrls.add(r.url);
+                });
+            }
+
+            // 2. Scan current tab
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (!tab) throw new Error('找不到活动标签页');
 
@@ -314,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response && response.success) {
                 scannedLinks = response.links || [];
-                renderBatchList();
+                renderBatchList(downloadedUrls);
             } else {
                 listContainer.innerHTML = '<div class="empty-state">未发现文档链接。</div>';
             }
@@ -327,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const renderBatchList = () => {
+    const renderBatchList = (downloadedUrls = new Set()) => {
         listContainer.innerHTML = '';
         if (scannedLinks.length === 0) {
             listContainer.innerHTML = '<div class="empty-state">未找到相关飞书文档链接。</div>';
@@ -336,16 +348,35 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        countLabel.innerText = `找到 ${scannedLinks.length} 个`;
+        let duplicateCount = 0;
+        scannedLinks.forEach(item => {
+            if (downloadedUrls.has(item.url)) duplicateCount++;
+        });
+
+        if (duplicateCount > 0) {
+            countLabel.innerText = `找到 ${scannedLinks.length} 个 (已自去重 ${duplicateCount} 个)`;
+        } else {
+            countLabel.innerText = `找到 ${scannedLinks.length} 个`;
+        }
+
         btnBatchStart.disabled = false;
 
         scannedLinks.forEach((item, index) => {
+            const isDownloaded = downloadedUrls.has(item.url);
             const div = document.createElement('div');
             div.className = 'batch-item';
+
+            // If downloaded: unchecked and show tag
+            // If not downloaded: checked
+            const checkedState = isDownloaded ? '' : 'checked';
+            const extraText = isDownloaded ? ' <span style="display:inline-block; vertical-align:middle; margin-left:6px; padding:2px 6px; background:#dcfce7; color:#15803d; border-radius:4px; font-size:11px; font-weight:500; border:1px solid #bbf7d0;">已下载</span>' : '';
+            const titleStyle = isDownloaded ? 'color:#9ca3af;' : '';
+
             div.innerHTML = `
-                <label>
-                    <input type="checkbox" class="batch-checkbox" value="${index}" checked>
-                    <span class="batch-item-text" title="${item.url}">${item.title}</span>
+                <label style="display:flex; align-items:center; width:100%; cursor:pointer;">
+                    <input type="checkbox" class="batch-checkbox" value="${index}" ${checkedState} style="margin-right:8px; flex-shrink:0;">
+                    <span class="batch-item-text" style="${titleStyle}; flex:1; min-width:0; margin-right:4px;" title="${item.title}">${item.title}</span>
+                    ${extraText}
                 </label>
             `;
             listContainer.appendChild(div);

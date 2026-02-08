@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Github, Mail } from 'lucide-react';
+import { Github, Mail, Coffee } from 'lucide-react';
 import { content } from '../data/content';
 
 const Footer = ({ lang }) => {
@@ -18,9 +17,13 @@ const Footer = ({ lang }) => {
                 </div>
 
                 {/* Links */}
-                <div className="flex gap-8 text-sm">
+                <div className="flex gap-8 text-sm items-center">
                     <a href="#" className="hover:text-white transition-colors">{t.privacy}</a>
                     <a href="#" className="hover:text-white transition-colors">{t.terms}</a>
+                    <a href="https://github.com/joshleeeeee/online-doc-exporter#%E8%AF%B7%E6%88%91%E5%96%9D%E6%9D%AF%E5%92%96%E5%95%A1-sponsor" target="_blank" className="hover:text-amber-400 transition-colors flex items-center gap-1 text-amber-500/80">
+                        <Coffee size={14} />
+                        {t.sponsor}
+                    </a>
                     <a href="https://github.com/joshleeeeee/online-doc-exporter" className="hover:text-white transition-colors">GitHub</a>
                 </div>
 
@@ -31,6 +34,9 @@ const Footer = ({ lang }) => {
                     </a>
                     <a href="mailto:joshlindx@outlook.com" className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 hover:text-white transition-all">
                         <Mail size={20} />
+                    </a>
+                    <a href="https://github.com/joshleeeeee/online-doc-exporter#%E8%AF%B7%E6%88%91%E5%96%9D%E6%9D%AF%E5%92%96%E5%95%A1-sponsor" target="_blank" className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 hover:text-amber-400 transition-all text-slate-400" title={t.sponsor}>
+                        <Coffee size={20} />
                     </a>
                 </div>
             </div>

@@ -83,7 +83,7 @@
 - **样式**: CSS 变量驱动的现代设计系统
 - **库支持**: [JSZip](https://stuk.github.io/jszip/) 用于批量文件打包
 
-## ☕ 请我喝杯咖啡 (Sponsor)
+<h2 id="sponsor">☕ 请我喝杯咖啡 (Sponsor)</h2>
 
 如果这个项目帮助你节省了时间，不妨请作者喝杯咖啡，鼓励他继续维护！
 

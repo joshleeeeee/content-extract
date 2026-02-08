@@ -31,7 +31,7 @@ export const content = {
                 },
                 {
                     title: "Smart Image Handling",
-                    description: "Choose between Base64 embedding for offline use or automatic upload to OSS/MinIO/S3."
+                    description: "Choose between Local ZIP bundling (Default), Base64 embedding, or automatic upload to OSS/MinIO/S3."
                 },
                 {
                     title: "Clean Code",
@@ -112,7 +112,7 @@ export const content = {
                 },
                 {
                     title: "智能图片处理",
-                    description: "支持 Base64 内嵌实现离线保存，或自动上传至 OSS/MinIO/S3 图床。"
+                    description: "支持本地 ZIP 打包（默认）、Base64 内嵌，或自动上传至 OSS/MinIO/S3 图床。"
                 },
                 {
                     title: "纯净代码",

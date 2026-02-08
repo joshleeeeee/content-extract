@@ -776,7 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (coffeeLink) {
         coffeeLink.addEventListener('click', (e) => {
             e.preventDefault();
-            chrome.tabs.create({ url: 'https://github.com/joshleeeeee/online-doc-exporter#%E8%AF%B7%E6%88%91%E5%96%9D%E6%9D%AF%E5%92%96%E5%95%A1-sponsor' });
+            chrome.tabs.create({ url: 'https://github.com/joshleeeeee/online-doc-exporter#sponsor' });
         });
     }
 });

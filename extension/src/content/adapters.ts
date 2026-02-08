@@ -1,6 +1,7 @@
-class PlatformAdapterFactory {
-    static getAdapter(format, options) {
-        // Simple logic for now
+import { ImageUtils, ImageUploader } from './utils';
+
+export class PlatformAdapterFactory {
+    static getAdapter(format: string, options: any): BaseAdapter | null {
         const hostname = window.location.hostname;
         if (hostname.includes("feishu.cn") || hostname.includes("larksuite.com")) {
             return new FeishuAdapter(format, options);
@@ -12,26 +13,20 @@ class PlatformAdapterFactory {
     }
 }
 
-class BaseAdapter {
-    constructor(format, options = {}) {
+export abstract class BaseAdapter {
+    format: string;
+    options: any;
+    images: { filename: string; base64: string }[] = [];
+
+    constructor(format: string, options: any = {}) {
         this.format = format;
         this.options = options;
-        this.images = []; // Store images for local zip mode
     }
 
-    /**
-     * @returns {Promise<string>} The parsed content.
-     */
-    async extract() {
-        throw new Error("Method not implemented.");
-    }
+    abstract extract(): Promise<{ content: string; images: any[] }>;
+    abstract scanLinks(): Promise<{ title: string; url: string }[]>;
 
-    /**
-     * Handles images with base64 conversion if needed.
-     * @param {string} src - Image source.
-     * @returns {Promise<string>} The converted source or original.
-     */
-    async processImage(src) {
+    async processImage(src: string): Promise<string> {
         if (!src) return '';
 
         const mode = this.options.imageMode || 'original';
@@ -39,17 +34,14 @@ class BaseAdapter {
         // 1. Upload to OSS/MinIO
         if (mode === 'minio' && this.options.imageConfig && this.options.imageConfig.enabled) {
             try {
-                let blob;
-                // Handle Data URI
+                let blob: Blob;
                 if (src.startsWith('data:')) {
                     const res = await fetch(src);
                     blob = await res.blob();
                 } else {
-                    // Handle Remote URL
                     blob = await ImageUtils.fetchBlob(src);
                 }
 
-                // Generate filename
                 const ext = blob.type.split('/')[1] || 'png';
                 const filename = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
@@ -57,7 +49,6 @@ class BaseAdapter {
                 return newUrl;
             } catch (e) {
                 console.error("Upload failed, falling back to original/base64", e);
-                // Fallback continues below
             }
         }
 
@@ -69,8 +60,7 @@ class BaseAdapter {
         // 3. Local (ZIP)
         if (mode === 'local') {
             try {
-                // Determine blob
-                let blob;
+                let blob: Blob;
                 if (src.startsWith('data:')) {
                     const res = await fetch(src);
                     blob = await res.blob();
@@ -81,10 +71,9 @@ class BaseAdapter {
                 const ext = blob.type.split('/')[1] || 'png';
                 const filename = `image_${this.images.length + 1}_${Date.now().toString().slice(-4)}.${ext}`;
 
-                // Convert to Base64 for transfer to popup
                 const reader = new FileReader();
-                const base64 = await new Promise((resolve) => {
-                    reader.onloadend = () => resolve(reader.result);
+                const base64 = await new Promise<string>((resolve) => {
+                    reader.onloadend = () => resolve(reader.result as string);
                     reader.readAsDataURL(blob);
                 });
 
@@ -96,7 +85,7 @@ class BaseAdapter {
                 return `images/${filename}`;
             } catch (e) {
                 console.warn("Local image fetch failed", e);
-                return src; // Fallback to original
+                return src;
             }
         }
 
@@ -104,165 +93,96 @@ class BaseAdapter {
     }
 }
 
-class FeishuAdapter extends BaseAdapter {
-    async scanLinks() {
+export class FeishuAdapter extends BaseAdapter {
+    async scanLinks(): Promise<{ title: string; url: string }[]> {
         console.log('FeishuAdapter: Starting link scan...');
-        const links = new Set();
-        const results = [];
+        const links = new Set<string>();
+        const results: { title: string; url: string }[] = [];
 
-        // Selectors for Feishu sidebar / tree navigation / file lists
         const selectors = [
-            'a.mention-doc', // Mentions
-            'a.file-item-link', // File List Items (Explorer)
-            'div[role="treeitem"] a', // Generic tree items
+            'a.mention-doc',
+            'a.file-item-link',
+            'div[role="treeitem"] a',
             'a[href*="/docs/"]',
             'a[href*="/docx/"]',
             'a[href*="/wiki/"]',
             'a[href*="/sheets/"]',
             'a[href*="/base/"]',
             'a[href*="/file/"]',
-            '.table-view .workspace-dnd-source', // Specific to table view rows
-            '.table-view [data-obj-token]'      // Specific to table view token items
+            '.table-view .workspace-dnd-source',
+            '.table-view [data-obj-token]'
         ];
 
         const nodes = document.querySelectorAll(selectors.join(', '));
-        console.log(`FeishuAdapter: Found ${nodes.length} potential nodes.`);
 
         nodes.forEach(node => {
-            let url = node.href;
+            let url: string | null = (node as any).href || null;
 
-            // 0. Handle elements without href but with tokens (e.g. file list items)
             if (!url) {
                 const objTokenAttr = node.getAttribute('data-obj-token');
                 const nodeTokenAttr = node.getAttribute('data-node-token');
                 if (objTokenAttr || nodeTokenAttr) {
                     const type = node.getAttribute('data-type');
-
-                    // Feishu OBJ Type Mapping
-                    const typeMap = {
-                        '2': 'docs',
-                        '3': 'sheets',
-                        '8': 'wiki',
-                        '15': 'base',
-                        '22': 'docx',
-                        '11': 'mindnotes'
+                    const typeMap: Record<string, string> = {
+                        '2': 'docs', '3': 'sheets', '8': 'wiki', '15': 'base', '22': 'docx', '11': 'mindnotes'
                     };
 
-                    const typePath = typeMap[type] || (nodeTokenAttr ? 'wiki' : 'docx');
+                    const typePath = typeMap[type || ''] || (nodeTokenAttr ? 'wiki' : 'docx');
                     let token = (typePath === 'wiki') ? (nodeTokenAttr || objTokenAttr) : (objTokenAttr || nodeTokenAttr);
 
                     if (token) {
-                        // Strip prefix like "MySpace:"
                         token = token.includes(':') ? token.split(':').pop() : token;
                         url = `${window.location.origin}/${typePath}/${token}`;
                     }
                 }
             }
 
-            // Fallback: Check if any child has href
             if (!url) {
                 const firstLink = node.querySelector('a[href]');
-                if (firstLink) url = firstLink.href;
+                if (firstLink) url = (firstLink as any).href;
             }
 
-            if (!url || typeof url !== 'string') {
-                return;
-            }
+            if (!url || typeof url !== 'string') return;
 
-            // Normalize URL (remove hash/query if needed, or keep?)
             url = url.split('#')[0];
 
-            if (links.has(url)) {
-                console.log(`Skipping duplicate URL: ${url}`);
-                return;
-            }
+            if (links.has(url)) return;
+            if (url.startsWith('http') && !url.includes('feishu.cn') && !url.includes('larksuite.com')) return;
+            if (!url.match(/\/(docs|docx|wiki|sheets|base|file)\//)) return;
 
-            // Check domain (if absolute)
-            if (url.startsWith('http')) {
-                if (!url.includes('feishu.cn') && !url.includes('larksuite.com')) {
-                    console.log(`Skipping external domain: ${url}`);
-                    return;
-                }
-            }
-
-            // Check type (docs, docx, wiki)
-            if (!url.match(/\/(docs|docx|wiki|sheets|base|file)\//)) {
-                console.log(`Skipping non-doc type: ${url}`);
-                return;
-            }
-
-            // --- Title Extraction ---
             let title = '';
-
-            // 1. Try specific title classes found in Feishu UI
             const titleNode = node.querySelector('.workspace-dnd-node-content, .tree-node-title, .catalog-tree-node-text, .explorer-node-title');
             if (titleNode) {
-                title = titleNode.getAttribute('title') || titleNode.textContent;
+                title = titleNode.getAttribute('title') || titleNode.textContent || '';
             }
+            if (!title) title = (node as any).title || '';
+            if (!title && node.classList.contains('mention-doc')) title = node.textContent || '';
+            if (!title) title = node.textContent?.trim() || '';
 
-            // 2. Try generic link title
-            if (!title) title = node.title;
+            title = title.trim().replace(/^(快捷方式|便捷方式)[:：]\s*/, "");
 
-            // 3. Try mention text
-            if (!title && node.classList.contains('mention-doc')) {
-                title = node.textContent; // Mentions usually are just text
-            }
-
-            // 4. Fallback to clean innerText (heavy)
-            if (!title) {
-                // Clone and remove metadata or just take text
-                // Feishu file links often have Date/Owner as children too.
-                // We want the primary text.
-                // Heuristic: Take the text of the first major div or span?
-                // Or just all text.
-                title = node.textContent.trim();
-            }
-
-            title = title.trim();
-            // Remove common Feishu prefixes for shortcuts
-            title = title.replace(/^(快捷方式|便捷方式)[:：]\s*/, "");
-
-            if (!title) {
-                console.log(`Skipping empty title for URL: ${url}`);
-                return;
-            }
+            if (!title) return;
 
             links.add(url);
             results.push({ title, url });
-            console.log(`Found: [${title}](${url})`);
         });
 
-        console.log(`FeishuAdapter: Scan complete. Found ${results.length} unique links.`);
         return results;
     }
 
     async extract() {
-        // Helper to find the real scrollable container
         const getScrollContainer = () => {
-            // 1. Priority: Specific Feishu containers (Old & New)
-            // Added more selectors for "Old" versions and different app modes
             const candidates = [
-                '.scroll-container',
-                '.editor-wrapper',
-                '.render-content',
-                '.document-container',
-                '#doc-body',
-                '.ace-content-scroll-container',
-                '.drive-scroll-container',
-                '.editor-scroll',
-                '.note-content-container'
+                '.scroll-container', '.editor-wrapper', '.render-content', '.document-container',
+                '#doc-body', '.ace-content-scroll-container', '.drive-scroll-container',
+                '.editor-scroll', '.note-content-container'
             ];
 
             for (const selector of candidates) {
-                const el = document.querySelector(selector);
-                // Must have scrollable content space and be visible
-                if (el && el.scrollHeight > el.clientHeight && el.clientHeight > 100) {
-                    return el;
-                }
+                const el = document.querySelector(selector) as HTMLElement;
+                if (el && el.scrollHeight > el.clientHeight && el.clientHeight > 100) return el;
             }
 
-            // 2. Generic Heuristic: Traverse up from content
-            // Support both old (data-block-type) and new (.ace-line) markers
             const contentNode = document.querySelector('[data-block-type]') ||
                 document.querySelector('.ace-line') ||
                 document.querySelector('.note-content');
@@ -271,57 +191,37 @@ class FeishuAdapter extends BaseAdapter {
                 let parent = contentNode.parentElement;
                 while (parent && parent !== document.body && parent !== document.documentElement) {
                     const style = window.getComputedStyle(parent);
-                    // Check for standard scroll properties or "overlay" which is sometimes used
                     const isScrollStyle = (style.overflowY === 'auto' || style.overflowY === 'scroll' || style.overflowY === 'overlay');
-                    const hasScrollSpace = parent.scrollHeight > parent.clientHeight; // Significant scroll diff
-
-                    if (hasScrollSpace && parent.clientHeight > 150) {
-                        // If explicitly scrollable or just looks like the main container
-                        if (isScrollStyle || parent.scrollHeight > parent.clientHeight + 50) {
-                            return parent;
-                        }
+                    if (parent.scrollHeight > parent.clientHeight && parent.clientHeight > 150) {
+                        if (isScrollStyle || parent.scrollHeight > parent.clientHeight + 50) return parent;
                     }
                     parent = parent.parentElement;
                 }
             }
 
-            // 3. Check Body/HTML specifically for window-level scroll
-            // Sometimes body has overflow:auto and handles scroll instead of window
             if (document.body.scrollHeight > document.documentElement.clientHeight &&
-                window.getComputedStyle(document.body).overflowY !== 'hidden') {
-                return document.body;
-            }
+                window.getComputedStyle(document.body).overflowY !== 'hidden') return document.body;
 
-            if (document.documentElement.scrollHeight > document.documentElement.clientHeight) {
-                return document.documentElement; // Effectively window scroll
-            }
+            if (document.documentElement.scrollHeight > document.documentElement.clientHeight) return document.documentElement;
 
-            return null; // Fallback to window
+            return null;
         };
 
         const container = getScrollContainer();
-        console.log('FeishuAdapter: Scroll container found:', container);
-
-        // Abstract scroll functions
         const getScrollHeight = () => container ? container.scrollHeight : document.documentElement.scrollHeight;
         const getClientHeight = () => container ? container.clientHeight : document.documentElement.clientHeight;
-        const scrollTo = (y) => {
-            if (container) {
-                container.scrollTo({ top: y, behavior: 'instant' }); // Use instant to avoid smooth scroll delays
-            } else {
-                window.scrollTo(0, y);
-            }
+        const scrollTo = (y: number) => {
+            if (container) container.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
+            else window.scrollTo(0, y);
         };
         const getCurrentScroll = () => container ? container.scrollTop : window.scrollY;
 
-        let currentScroll = 0;
         let totalHeight = getScrollHeight();
-        const processedBlockIds = new Set();
+        const processedBlockIds = new Set<string>();
         let output = "";
-        let listState = null;
-        let tableBuffer = [];
+        let listState: string | null = null;
+        let tableBuffer: Element[] = [];
 
-        // Helper to flush table buffer
         const flushTableBuffer = async () => {
             if (tableBuffer.length > 0) {
                 output += await this.processTables(tableBuffer, this.format, this.options);
@@ -329,44 +229,27 @@ class FeishuAdapter extends BaseAdapter {
             }
         };
 
-        // Helper to process a batch of blocks
-        const processBatch = async (blocks) => {
+        const processBatch = async (blocks: Element[]) => {
             for (let i = 0; i < blocks.length; i++) {
                 const block = blocks[i];
-
-                // Unique ID check
-                // Try data-block-id first, then id, then fallback
                 let blockId = block.getAttribute('data-block-id') || block.id;
 
                 if (!blockId) {
-                    // Fallback for blocks without IDs (common in some rich text parts)
-                    // We construct a signature: type + content(trimmed) + index-in-parent
-                    // This is risky but better than nothing
-                    const contentSig = block.textContent.substring(0, 20).replace(/\s/g, '');
-                    const type = block.getAttribute("data-block-type");
+                    const contentSig = block.textContent?.substring(0, 20).replace(/\s/g, '') || '';
+                    const type = block.getAttribute("data-block-type") || 'untyped';
                     blockId = `${type}_${contentSig}`;
                 }
 
-                if (processedBlockIds.has(blockId)) {
-                    continue;
-                }
+                if (processedBlockIds.has(blockId)) continue;
                 processedBlockIds.add(blockId);
 
                 const type = block.getAttribute("data-block-type");
-
-                // Skip hidden/container/irrelevant types
                 if (type === "page" || type === "table_cell") continue;
-                // Skip blocks inside tables (handled by table processor)
                 if (block.closest('[data-block-type="table"]') && type !== "table") continue;
 
-                // Prevent duplicates: Skip untyped ace-lines that are children of other typed blocks (Quote, Code, etc.)
-                // These are effectively "inner" blocks that the parent block's renderer already handles.
                 if (!type && block.classList.contains("ace-line")) {
                     const parent = block.closest('[data-block-type]');
-                    if (parent && parent.getAttribute('data-block-type') !== 'page') {
-                        // console.log(`Skipping inner block ${blockId} because parent ${parent.getAttribute('data-block-type')} handles it.`);
-                        continue;
-                    }
+                    if (parent && parent.getAttribute('data-block-type') !== 'page') continue;
                 }
 
                 if (type === "table") {
@@ -376,7 +259,6 @@ class FeishuAdapter extends BaseAdapter {
                     await flushTableBuffer();
                 }
 
-                // List Handling
                 if (this.format === "html") {
                     if (type === "ordered") {
                         if (listState !== "ol") {
@@ -400,7 +282,6 @@ class FeishuAdapter extends BaseAdapter {
             }
         };
 
-        // Scroll Loop
         scrollTo(0);
         await new Promise(r => setTimeout(r, 600));
 
@@ -408,140 +289,88 @@ class FeishuAdapter extends BaseAdapter {
         let lastScrollTop = -1;
 
         while (true) {
-            // 1. Get current blocks
             const blocks = Array.from(document.querySelectorAll("[data-block-type], .ace-line[data-node='true']"));
-
-            // 2. Process them
             await processBatch(blocks);
             await flushTableBuffer();
 
-            // 3. Update Dimensions
             totalHeight = getScrollHeight();
             const clientHeight = getClientHeight();
-            currentScroll = getCurrentScroll();
+            const currentScroll = getCurrentScroll();
 
-            // 4. Scroll Logic
-            // If we are already at bottom
             if (Math.ceil(currentScroll + clientHeight) >= totalHeight - 50) {
-                // Check if height expanded (lazy load finished?)
-                // If total height didn't grow and we are at bottom, we are done
                 noNewContentCount++;
-                // Increase retry count to handle slow loading
                 if (noNewContentCount > 8) break;
             } else {
                 noNewContentCount = 0;
             }
 
-            // Scroll down
             const nextScroll = currentScroll + (clientHeight * 0.85);
             scrollTo(nextScroll);
 
-            // 5. Wait for scroll/load
             const waitTime = this.options.scrollWaitTime || 1500;
             await new Promise(r => setTimeout(r, waitTime));
 
-            // Check if we actually moved (if scroll stuck, we hit bottom)
             const newScroll = getCurrentScroll();
             if (Math.abs(newScroll - lastScrollTop) < 5 && lastScrollTop !== -1) {
-                // We tried to scroll but position didn't change -> We are likely at bottom
-                // But double check against height (sometimes height grows but scroll stays?)
-                // Just break if stuck
                 noNewContentCount++;
                 if (noNewContentCount > 8) break;
             }
             lastScrollTop = newScroll;
         }
 
-        // Final cleanup
         await flushTableBuffer();
         if (this.format === "html" && listState) {
             output += listState === "ol" ? "</ol>" : "</ul>";
         }
 
-        if (output.length === 0) {
-            console.warn("No content blocks found even after scroll");
-        }
-
-        return {
-            content: output,
-            images: this.images
-        };
+        return { content: output, images: this.images };
     }
 
-    extractCodeBlock(block) {
-        // 1. Extract Language
+    extractCodeBlock(block: Element) {
         let lang = "";
         const langNode = block.querySelector('.code-block-header-btn span') ||
             block.querySelector('.code-language') ||
             block.querySelector('[class*="language-"]');
         if (langNode) {
-            lang = langNode.textContent.trim().toLowerCase();
-            // Clean up common UI labels from language
-            if (["plain text", "plaintext", "代码块", "copy", "复制"].includes(lang)) {
-                lang = "";
-            }
+            lang = langNode.textContent?.trim().toLowerCase() || '';
+            if (["plain text", "plaintext", "代码块", "copy", "复制"].includes(lang)) lang = "";
         }
 
-        // 2. Extract Content safely
         let content = "";
-
-        // Strategy A: If we have clean .ace-line elements, strictly use them.
         const lines = Array.from(block.querySelectorAll('.ace-line'));
         if (lines.length > 0) {
             content = lines.map(line => line.textContent).join('\n');
         } else {
-            // Strategy B: Fallback
-            const clone = block.cloneNode(true);
-            const artifacts = clone.querySelectorAll(
-                '.code-block-header, .code-block-tool, .code-copy-btn, .code-language, [class*="header"]'
-            );
-            artifacts.forEach(el => el.remove());
+            const clone = block.cloneNode(true) as HTMLElement;
+            clone.querySelectorAll('.code-block-header, .code-block-tool, .code-copy-btn, .code-language, [class*="header"]').forEach(el => el.remove());
             const contentNode = clone.querySelector('.code-block-content') || clone.querySelector('code') || clone;
-            content = contentNode.innerText || contentNode.textContent;
+            content = (contentNode as HTMLElement).innerText || contentNode.textContent || '';
         }
 
         content = content.trim();
-
-        // 3. Final cleanup - Aggressive validtion against UI text leaks
         const linesOfContent = content.split('\n');
         if (linesOfContent.length > 0) {
-            // Check first line specifically
             let firstLine = linesOfContent[0].trim();
-
-            // Remove "代码块" prefix if present (e.g. "代码块\nfunction...")
             if (firstLine.startsWith("代码块")) {
                 firstLine = firstLine.substring(3).trim();
-                linesOfContent[0] = firstLine; // Update first line
-
-                // If first line is now empty, remove it entirely
-                if (!firstLine) {
-                    linesOfContent.shift();
-                }
+                linesOfContent[0] = firstLine;
+                if (!firstLine) linesOfContent.shift();
             }
-
-            // Re-check first line after update
             if (linesOfContent.length > 0) {
                 firstLine = linesOfContent[0].trim();
-                // Check for Language Name leak (e.g. "Plain Text\nfunction...")
-                if (lang && firstLine.toLowerCase() === lang) {
-                    linesOfContent.shift();
-                }
+                if (lang && firstLine.toLowerCase() === lang) linesOfContent.shift();
             }
-
             content = linesOfContent.join('\n').trim();
         }
 
         return { lang, content };
     }
 
-    async getBlockContent(block, format, options) {
+    async getBlockContent(block: Element, format: string, options: any): Promise<string> {
         let type = block.getAttribute("data-block-type");
         if (!type && block.classList.contains("ace-line")) {
-            if (block.classList.contains("gallery-line") || block.querySelector(".new-gallery")) {
-                type = "image";
-            } else {
-                type = "text";
-            }
+            if (block.classList.contains("gallery-line") || block.querySelector(".new-gallery")) type = "image";
+            else type = "text";
         }
         const textContent = this.extractStyledText(block, format);
 
@@ -553,9 +382,6 @@ class FeishuAdapter extends BaseAdapter {
                 case "heading4": return `#### ${textContent}\n\n`;
                 case "heading5": return `##### ${textContent}\n\n`;
                 case "heading6": return `###### ${textContent}\n\n`;
-                case "heading7": return `####### ${textContent}\n\n`;
-                case "heading8": return `######## ${textContent}\n\n`;
-                case "heading9": return `######### ${textContent}\n\n`;
                 case "text": return `${textContent}\n\n`;
                 case "code":
                     const codeMd = this.extractCodeBlock(block);
@@ -580,7 +406,6 @@ class FeishuAdapter extends BaseAdapter {
                 default: return textContent + "\n\n";
             }
         } else {
-            // HTML
             switch (type) {
                 case "heading1": return `<h1>${textContent}</h1>`;
                 case "heading2": return `<h2>${textContent}</h2>`;
@@ -609,41 +434,23 @@ class FeishuAdapter extends BaseAdapter {
         }
     }
 
-    extractStyledText(element, format = "markdown") {
+    extractStyledText(element: Element, format: string = "markdown"): string {
         let result = "";
-        // Select both regular text spans and mention/link widgets that aren't standard text
-        // Use a set to deduplicate if hierarchy overlaps (though usually they are siblings in ace-line)
-        // Updated selector to support ace-line blocks directly (referencing descendants without .ace-line prefix constraint)
         const candidates = Array.from(element.querySelectorAll('[data-string="true"], .mention-doc, .embed-inline-link'));
-
-        // Filter out candidates that are inside other candidates to avoid double counting
-        // (e.g. if we selected parent and child)
-        const textSpans = candidates.filter((node, index, self) => {
-            // Check if this node is contained within any OTHER node in the list
-            return !self.some((other, otherIndex) => otherIndex !== index && other.contains(node));
-        });
-
-        if (textSpans.length === 0 && element.textContent.trim().length > 0) {
-            // Fallback: if no structured spans found but block has text (headers often simple)
-            // But usually headers also have [data-string] or similar structure in Feishu.
-            // If completely empty, return empty.
-            // result = element.textContent.trim(); // Risky?
-        }
+        const textSpans = candidates.filter((node, index, self) => !self.some((other, otherIndex) => otherIndex !== index && other.contains(node)));
 
         textSpans.forEach(span => {
-            let text = span.textContent;
-            let href = null;
+            let text = span.textContent || '';
+            let href: string | null = null;
 
-            // Check if it's a mention/doc link
             if (span.classList && (span.classList.contains('mention-doc') || span.classList.contains('embed-inline-link'))) {
-                const anchor = span.tagName === 'A' ? span : span.querySelector('a');
+                const anchor = (span.tagName === 'A' ? span : span.querySelector('a')) as HTMLAnchorElement;
                 if (anchor) {
                     href = anchor.getAttribute('data-href') || anchor.getAttribute('href');
-                    text = anchor.textContent; // clean text
+                    text = anchor.textContent || '';
                 }
             }
 
-            // Normal text processing
             const style = span.getAttribute("style") || "";
             const classes = span.className || "";
             const isCode = classes.includes("code-inline") || style.includes("font-family:Monospace");
@@ -659,60 +466,38 @@ class FeishuAdapter extends BaseAdapter {
                 if (isItalic) chunk = "*" + chunk + "*";
                 if (isStrike) chunk = "~~" + chunk + "~~";
 
-                // Check for wrapping link (for normal text spans)
                 if (!href) {
-                    const linkWrapper = span.closest("a.link");
-                    if (linkWrapper && linkWrapper.href) {
-                        href = linkWrapper.href;
-                    }
+                    const linkWrapper = span.closest("a.link") as HTMLAnchorElement;
+                    if (linkWrapper && linkWrapper.href) href = linkWrapper.href;
                 }
 
-                if (href) {
-                    // Clean href
-                    if (href.startsWith('http')) {
-                        chunk = `[${chunk}](${href})`;
-                    }
-                }
-
+                if (href && href.startsWith('http')) chunk = `[${chunk}](${href})`;
                 result += chunk;
             } else {
-                // HTML logic
-                // ... (simplified for brevity, similar structure)
-                // Reuse existing HTML logic structure but handle href
-
                 const computed = window.getComputedStyle(span);
-                // ... standard styles ...
-                // Re-implementing simplified style extraction for the fix context
                 const isComputedBold = computed.fontWeight === "bold" || parseInt(computed.fontWeight) >= 600;
                 const isComputedItalic = computed.fontStyle === "italic";
                 const decoration = computed.textDecorationLine || computed.textDecoration || "";
 
                 let chunk = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
                 let stylesComponents = [];
                 if (isComputedBold) stylesComponents.push("font-weight: bold");
                 if (isComputedItalic) stylesComponents.push("font-style: italic");
                 if (decoration.includes("underline")) stylesComponents.push("text-decoration: underline");
                 if (decoration.includes("line-through")) stylesComponents.push("text-decoration: line-through");
 
-                // Colors
                 const color = computed.color;
                 if (color && color !== "rgba(0, 0, 0, 0)") stylesComponents.push(`color: ${color}`);
 
-                if (stylesComponents.length > 0) {
-                    chunk = `<span style="${stylesComponents.join("; ")}">${chunk}</span>`;
-                }
+                if (stylesComponents.length > 0) chunk = `<span style="${stylesComponents.join("; ")}">${chunk}</span>`;
 
                 if (!href) {
-                    const linkWrapper = span.closest("a.link");
+                    const linkWrapper = span.closest("a.link") as HTMLAnchorElement;
                     if (linkWrapper) href = linkWrapper.href;
-                    if (span.tagName === 'A') href = span.href; // if span is actually A
+                    if (span.tagName === 'A') href = (span as HTMLAnchorElement).href;
                 }
 
-                if (href) {
-                    chunk = `<a href="${href}">${chunk}</a>`;
-                }
-
+                if (href) chunk = `<a href="${href}">${chunk}</a>`;
                 result += chunk;
             }
         });
@@ -720,10 +505,9 @@ class FeishuAdapter extends BaseAdapter {
         return result;
     }
 
-
-    async processTables(tableBlocks, format, options = {}) {
+    async processTables(tableBlocks: Element[], format: string, options: any = {}): Promise<string> {
         let tableOut = "";
-        let allRows = [];
+        let allRows: HTMLTableRowElement[] = [];
 
         tableBlocks.forEach(block => {
             const rows = Array.from(block.querySelectorAll("tr"));
@@ -731,12 +515,9 @@ class FeishuAdapter extends BaseAdapter {
         });
 
         if (allRows.length === 0) return "";
-
         const hasImages = allRows.some(row => row.querySelector("img"));
-
-        if (format === "markdown" && hasImages) {
-            format = "html_table_in_md";
-        }
+        const isFallback = format === "markdown" && hasImages;
+        if (isFallback) format = "html_table_in_md";
 
         if (format === "markdown") {
             tableOut += "\n|";
@@ -745,11 +526,9 @@ class FeishuAdapter extends BaseAdapter {
                 const cells = row.querySelectorAll("td");
                 let rowStr = "|";
 
-                for (const cell of cells) {
+                for (const cell of Array.from(cells)) {
                     let cellContent = "";
-                    let images = Array.from(cell.querySelectorAll("img"));
-
-                    images = images.filter(img => {
+                    let images = Array.from(cell.querySelectorAll("img")).filter(img => {
                         const src = img.getAttribute("data-src") || img.src;
                         if (src && src.startsWith("data:image/svg")) return false;
                         if (img.width < 10 && img.height < 10) return false;
@@ -765,15 +544,11 @@ class FeishuAdapter extends BaseAdapter {
                     }
 
                     const text = this.extractStyledText(cell, "markdown");
-                    if (text.trim()) {
-                        cellContent += text.replace(/\n/g, "<br>");
-                    }
-
+                    if (text.trim()) cellContent += text.replace(/\n/g, "<br>");
                     if (cellContent.endsWith("<br>")) cellContent = cellContent.slice(0, -4);
                     rowStr += ` ${cellContent} |`;
                 }
                 tableOut += rowStr + "\n";
-
                 if (rowIndex === 0) {
                     let sep = "|";
                     cells.forEach(() => sep += " --- |");
@@ -782,24 +557,19 @@ class FeishuAdapter extends BaseAdapter {
             }
             tableOut += "\n";
         } else {
-            const isFallback = format === "html_table_in_md";
             tableOut += '<table border="1" style="border-collapse: collapse; width: 100%;">';
             for (const row of allRows) {
                 tableOut += "<tr>";
                 const cells = row.querySelectorAll("td");
-
-                for (const cell of cells) {
+                for (const cell of Array.from(cells)) {
                     let cellInner = "";
                     const blocks = cell.querySelectorAll("[data-block-type]");
-
                     if (blocks.length > 0) {
-                        for (const ib of blocks) {
-                            cellInner += await this.getBlockContent(ib, "html", options);
-                        }
+                        for (const ib of Array.from(blocks)) cellInner += await this.getBlockContent(ib, "html", options);
                     } else {
                         cellInner = this.extractStyledText(cell, "html");
                         const images = cell.querySelectorAll("img");
-                        for (const img of images) {
+                        for (const img of Array.from(images)) {
                             if (!cellInner.includes(img.src) && img.width > 20) {
                                 const finalSrc = await this.processImage(img.src);
                                 cellInner += `<img src="${finalSrc}" referrerpolicy="no-referrer" style="max-width:100%;" /><br>`;
@@ -817,25 +587,14 @@ class FeishuAdapter extends BaseAdapter {
     }
 }
 
-class BossZhipinAdapter extends BaseAdapter {
-    async scanLinks() {
-        console.log('BossZhipinAdapter: Starting link scan...');
-        const results = [];
-        const links = new Set();
+export class BossZhipinAdapter extends BaseAdapter {
+    async scanLinks(): Promise<{ title: string; url: string }[]> {
+        const results: { title: string; url: string }[] = [];
+        const links = new Set<string>();
+        const selectors = ['.job-card-box', '.job-card-wrap', '.job-list-item', 'li[data-v-0c0e192e]'];
 
-        // Selectors for Boss Zhipin job list (search results, company jobs etc.)
-        const selectors = [
-            '.job-card-box',
-            '.job-card-wrap',
-            '.job-list-item',
-            'li[data-v-0c0e192e]' // Specific from user snippet
-        ];
-
-        const nodes = document.querySelectorAll(selectors.join(', '));
-        console.log(`BossZhipinAdapter: Found ${nodes.length} potential cards.`);
-
-        nodes.forEach(card => {
-            const linkNode = card.querySelector('.job-name') || card.querySelector('a[href*="/job_detail/"]');
+        document.querySelectorAll(selectors.join(', ')).forEach(card => {
+            const linkNode = (card.querySelector('.job-name') || card.querySelector('a[href*="/job_detail/"]')) as HTMLAnchorElement;
             if (!linkNode) return;
 
             let url = linkNode.href;
@@ -844,95 +603,55 @@ class BossZhipinAdapter extends BaseAdapter {
                 if (hrefAttr) url = window.location.origin + hrefAttr;
             }
 
-            if (!url || typeof url !== 'string') return;
-
-            // Normalize URL
+            if (!url) return;
             url = url.split('?')[0].split('#')[0];
             if (url.startsWith('/')) url = window.location.origin + url;
 
             if (links.has(url)) return;
             links.add(url);
 
-            // Extract metadata for the title
-            const jobName = linkNode.textContent.trim();
-            const salary = card.querySelector('.job-salary')?.textContent.trim() || '';
-            const tags = Array.from(card.querySelectorAll('.tag-list li')).map(li => li.textContent.trim()).join('|') ||
-                Array.from(card.querySelectorAll('.job-labels li')).map(li => li.textContent.trim()).join('|');
-            const company = card.querySelector('.boss-name')?.textContent.trim() || card.querySelector('.company-name')?.textContent.trim() || '';
-            const location = card.querySelector('.company-location')?.textContent.trim() || card.querySelector('.job-area')?.textContent.trim() || '';
+            const jobName = linkNode.textContent?.trim() || '';
+            const salary = card.querySelector('.job-salary')?.textContent?.trim() || '';
+            const tags = Array.from(card.querySelectorAll('.tag-list li, .job-labels li')).map(li => li.textContent?.trim()).join('|');
+            const company = card.querySelector('.boss-name, .company-name')?.textContent?.trim() || '';
+            const location = card.querySelector('.company-location, .job-area')?.textContent?.trim() || '';
 
-            // User requested task format: Job Name + Salary + Tags + Company + Location
             const title = `${jobName} [${salary}] [${tags}] - ${company} (${location})`.trim();
-
             results.push({ title, url });
         });
 
-        console.log(`BossZhipinAdapter: Scan complete. Found ${results.length} jobs.`);
         return results;
     }
 
     async extract() {
-        console.log('BossZhipinAdapter: Extracting content...');
-
-        // Detail page selectors
-        const selectors = {
-            title: ['.job-banner .name h1', '.name h1', 'h1'],
-            salary: ['.job-banner .salary', '.salary'],
-            description: ['.job-sec-text', '.job-detail .text', '.detail-content'],
-            company: [
-                '.sider-company .company-info a:not([ka*="logo"])',
-                '.company-info .name',
-                '.sidebar-section .company-info .name',
-                '.sider-company .name',
-                '.job-boss-info .boss-info-attr'
-            ],
-            location: ['.location-address', '.job-location-map .text', '.job-location .text'],
-            experience: ['.text-experiece', '.text-experience'],
-            degree: ['.text-degree']
-        };
-
-        const extractText = (sList) => {
+        const extractText = (sList: string[]) => {
             for (const s of sList) {
                 const el = document.querySelector(s);
                 if (el) {
-                    // Special case for company links with title attribute
-                    if (s.includes('company-info a') && el.getAttribute('title')) {
-                        return el.getAttribute('title').trim();
-                    }
-                    let text = el.textContent.trim();
-                    // Special case for boss info attr: "Company Name · Job Title"
-                    if (s.includes('boss-info-attr') && text.includes('·')) {
-                        return text.split('·')[0].trim();
-                    }
+                    if (s.includes('company-info a') && el.getAttribute('title')) return el.getAttribute('title')?.trim() || '';
+                    let text = el.textContent?.trim() || '';
+                    if (s.includes('boss-info-attr') && text.includes('·')) return text.split('·')[0].trim();
                     return text;
                 }
             }
             return '';
         };
 
-        const jobTitle = extractText(selectors.title) || document.title.split('_')[0];
-        const salary = extractText(selectors.salary);
-        const company = extractText(selectors.company);
-        const location = extractText(selectors.location);
-        const experience = extractText(selectors.experience);
-        const degree = extractText(selectors.degree);
+        const jobTitle = extractText(['.job-banner .name h1', '.name h1', 'h1']) || document.title.split('_')[0];
+        const salary = extractText(['.job-banner .salary', '.salary']);
+        const company = extractText(['.sider-company .company-info a', '.company-info .name', '.sider-company .name']);
+        const location = extractText(['.location-address', '.job-location .text']);
+        const experience = extractText(['.text-experience', '.text-experiece']);
+        const degree = extractText(['.text-degree']);
 
         let descHtml = '';
-        for (const s of selectors.description) {
-            const el = document.querySelector(s);
-            if (el) {
-                // Clone to clean noise without affecting page
-                const clone = el.cloneNode(true);
-                // Remove Boss anti-scraping noise tokens
-                const noise = clone.querySelectorAll('span, i, em, b');
-                noise.forEach(n => {
-                    if (n.textContent.includes('BOSS直聘') || n.textContent === '直聘') {
-                        n.remove();
-                    }
-                });
-                descHtml = clone.innerHTML;
-                break;
-            }
+        const descEl = document.querySelector('.job-sec-text, .job-detail .text, .detail-content');
+        if (descEl) {
+            const clone = descEl.cloneNode(true) as HTMLElement;
+            clone.querySelectorAll('span, i, em, b').forEach(n => {
+                if (n.textContent?.includes('BOSS直聘') || n.textContent === '直聘') n.remove();
+            });
+            descHtml = clone.innerHTML;
         }
 
         let output = "";
@@ -942,45 +661,24 @@ class BossZhipinAdapter extends BaseAdapter {
             if (company) output += `**公司**: ${company}\n`;
             if (location) output += `**地点**: ${location}\n`;
             if (experience || degree) output += `**要求**: ${experience}${experience && degree ? ' / ' : ''}${degree}\n`;
-            output += `**原链接**: ${window.location.href.split('?')[0]}\n`;
-            output += `\n`;
-            output += `## 职位描述\n\n${this.getSimpleMarkdown(descHtml)}\n\n`;
+            output += `**原链接**: ${window.location.href.split('?')[0]}\n\n## 职位描述\n\n${this.getSimpleMarkdown(descHtml)}\n\n`;
         } else {
             output = `<h1>${jobTitle}</h1>`;
             if (salary) output += `<p><strong>薪资</strong>: ${salary}</p>`;
             if (company) output += `<p><strong>公司</strong>: ${company}</p>`;
             if (location) output += `<p><strong>地点</strong>: ${location}</p>`;
             if (experience || degree) output += `<p><strong>要求</strong>: ${experience}${experience && degree ? ' / ' : ''}${degree}</p>`;
-            output += `<p><strong>原链接</strong>: <a href="${window.location.href}">${window.location.href.split('?')[0]}</a></p>`;
-            output += `<h2>职位描述</h2><div>${descHtml}</div>`;
+            output += `<p><strong>原链接</strong>: <a href="${window.location.href}">${window.location.href.split('?')[0]}</a></p><h2>职位描述</h2><div>${descHtml}</div>`;
         }
 
-        return {
-            content: output,
-            images: []
-        };
+        return { content: output, images: [] };
     }
 
-    getSimpleMarkdown(html) {
+    getSimpleMarkdown(html: string): string {
         if (!html) return "";
-        let md = html;
-        // Basic cleaning
-        md = md.replace(/<br\s*\/?>/gi, '\n');
-        md = md.replace(/<\/p>/gi, '\n\n');
-        md = md.replace(/<li[^>]*>/gi, '- ');
-        md = md.replace(/<\/li>/gi, '\n');
-
-        // Remove all other tags
-        md = md.replace(/<[^>]+>/g, '');
-
-        // Decode entities
+        let md = html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n\n').replace(/<li[^>]*>/gi, '- ').replace(/<\/li>/gi, '\n').replace(/<[^>]+>/g, '');
         const doc = new DOMParser().parseFromString(md, 'text/html');
-        md = doc.documentElement.textContent;
-
-        // Clean up multiple newlines
-        md = md.replace(/\n{3,}/g, '\n\n');
-
-        return md.trim();
+        md = doc.documentElement.textContent || '';
+        return md.replace(/\n{3,}/g, '\n\n').trim();
     }
 }
-

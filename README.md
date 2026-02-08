@@ -1,6 +1,6 @@
 # 🚀 OnlineDocExporter (在线文档助手)
 
-[![Version](https://img.shields.io/badge/version-v1.3.0-blue.svg)](https://github.com/joshleeeeee/online-doc-exporter)
+[![Version](https://img.shields.io/badge/version-v1.4.0-blue.svg)](https://github.com/joshleeeeee/online-doc-exporter)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Chrome%20%7C%20Edge%20%7C%20Lark-lightgrey.svg)](https://github.com/joshleeeeee/online-doc-exporter)
 
@@ -71,6 +71,7 @@
 - [x] **自动图床上传** (已上线)
 - [x] **BOSS 直聘招聘信息提取** (v1.3.0)
 - [x] **智能网站支持检测** (v1.3.0)
+- [x] **UI 极简风格重构与下载中心优化** (v1.4.0)
 - [ ] **多平台兼容**: 持续扩展支持 语雀、钉钉文档、Notion 等。
 - [ ] **自定义模版**: 允许用户自定义导出的 Markdown 样式与 Frontmatter。
 

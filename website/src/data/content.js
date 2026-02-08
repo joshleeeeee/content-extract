@@ -10,10 +10,10 @@ export const content = {
             repo: "GitHub Repo"
         },
         hero: {
-            badge: "v1.3.0 is out now",
+            badge: "v1.4.0 is out now",
             titleStart: "Export Everything,",
             titleEnd: "Own Your Data",
-            description: "The ultimate universal content extractor for your browser. From cloud docs to job listings and beyond, effortlessly convert online content into clean Markdown or Rich Text. Break down platform silos with smart batch scanning and automated workflows.",
+            description: "The ultimate universal content extractor for your browser. Now with a vibrant, minimalist design tailored for v1.4.0. From cloud docs to job listings, effortlessly convert online content into clean Markdown or Rich Text with smart batch scanning.",
             addToChrome: "Add to Chrome",
             exploreFeatures: "Explore Features"
         },
@@ -51,7 +51,7 @@ export const content = {
                 },
                 {
                     title: "Task Manager",
-                    description: "Built-in manager to track capture progress, history, and archive all exports into ZIP files."
+                    description: "Built-in manager to track capture progress, history, and archive all exports into ZIP files. Features single-item direct download for ultimate flexibility."
                 }
             ]
         },
@@ -99,10 +99,10 @@ export const content = {
             repo: "GitHub 仓库"
         },
         hero: {
-            badge: "v1.3.0 现已发布",
+            badge: "v1.4.0 现已发布",
             titleStart: "万物皆可导出",
             titleEnd: "数据回归自我",
-            description: "跨平台的在线内容提取神器。从云端文档到招聘信息，一键将碎片化的网页内容转化为精美的 Markdown 或富文本。内置智能扫描与自动化流，打破平台壁垒，让知识沉淀更简单。",
+            description: "跨平台的在线内容提取神器。v1.4.0 采用全新的“灵动深蓝”极简设计，从云端文档到招聘信息，一键将碎片内容转化为精美 Markdown。内置智能扫描与自动化流，让知识管理更高效、更纯粹。",
             addToChrome: "添加到 Chrome",
             exploreFeatures: "探索功能"
         },
@@ -140,7 +140,7 @@ export const content = {
                 },
                 {
                     title: "现代下载中心",
-                    description: "内置任务管理器，支持持久化历史记录与 ZIP 归档。轻松掌控你的导出任务。"
+                    description: "内置任务管理器，支持持久化历史记录与 ZIP 归档。v1.4.0 新增单条记录快速提取，轻松掌控你的所有导出任务。"
                 }
             ]
         },

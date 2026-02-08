@@ -15,11 +15,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Zip extension
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Build extension
         run: |
           cd extension
-          zip -r ../online-doc-exporter-${{ github.ref_name }}.zip .
-          cd ..
+          npm ci
+          npm run build
+
+      - name: Zip extension
+        run: |
+          cd extension/dist
+          zip -r ../../online-doc-exporter-${{ github.ref_name }}.zip .
+          cd ../..
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

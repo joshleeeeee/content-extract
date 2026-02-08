@@ -1,10 +1,10 @@
-class ImageUtils {
+export class ImageUtils {
     /**
      * Fetch image as Blob (handles credentials/referrer)
-     * @param {string} url 
+     * @param url 
      * @returns {Promise<Blob>}
      */
-    static async fetchBlob(url) {
+    static async fetchBlob(url: string): Promise<Blob> {
         try {
             const response = await fetch(url, { referrerPolicy: 'no-referrer', credentials: 'include' });
             const contentType = response.headers.get("content-type");
@@ -20,15 +20,15 @@ class ImageUtils {
 
     /**
      * Convert an image URL to a Base64 string.
-     * @param {string} url - The URL of the image.
+     * @param url - The URL of the image.
      * @returns {Promise<string>} - The Base64 string.
      */
-    static async urlToBase64(url) {
+    static async urlToBase64(url: string): Promise<string> {
         try {
             const blob = await this.fetchBlob(url);
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
+                reader.onloadend = () => resolve(reader.result as string);
                 reader.onerror = reject;
                 reader.readAsDataURL(blob);
             });
@@ -39,43 +39,52 @@ class ImageUtils {
     }
 }
 
-class CryptoUtils {
-    static async hmacSha1(keyString, dataString) {
+export class CryptoUtils {
+    static async hmacSha1(keyString: string, dataString: string): Promise<ArrayBuffer> {
         const encoder = new TextEncoder();
         const keyData = encoder.encode(keyString);
-        const algorithm = { name: "HMAC", hash: "SHA-1" };
+        const algorithm: HmacImportParams = { name: "HMAC", hash: "SHA-1" };
         const key = await crypto.subtle.importKey("raw", keyData, algorithm, false, ["sign"]);
         const signature = await crypto.subtle.sign(algorithm.name, key, encoder.encode(dataString));
         return signature;
     }
 
-    static async hmacSha256(key, dataString) {
+    static async hmacSha256(key: string | Uint8Array, dataString: string): Promise<ArrayBuffer> {
         const encoder = new TextEncoder();
-        let keyData = key;
+        let keyData: Uint8Array;
         if (typeof key === 'string') {
             keyData = encoder.encode(key);
+        } else {
+            keyData = key;
         }
 
-        const algorithm = { name: "HMAC", hash: "SHA-256" };
+        const algorithm: HmacImportParams = { name: "HMAC", hash: "SHA-256" };
         const cryptoKey = await crypto.subtle.importKey("raw", keyData, algorithm, false, ["sign"]);
         const signature = await crypto.subtle.sign(algorithm.name, cryptoKey, encoder.encode(dataString));
         return signature; // ArrayBuffer
     }
 
-    static async sha256(data) {
+    static async sha256(data: string | ArrayBuffer | Uint8Array): Promise<ArrayBuffer> {
         const encoder = new TextEncoder();
-        const buffer = typeof data === 'string' ? encoder.encode(data) : data;
+        let buffer: Uint8Array | ArrayBuffer;
+        if (typeof data === 'string') {
+            buffer = encoder.encode(data);
+        } else if (data instanceof ArrayBuffer) {
+            buffer = data;
+        } else {
+            buffer = data;
+        }
         const hash = await crypto.subtle.digest("SHA-256", buffer);
         return hash; // ArrayBuffer
     }
 
-    static bufferToHex(buffer) {
+    static bufferToHex(buffer: ArrayBuffer): string {
         return Array.from(new Uint8Array(buffer))
             .map(b => b.toString(16).padStart(2, '0'))
             .join('');
     }
 
-    static bufferToBase64(buffer) {
+    static bufferToBase64(buffer: ArrayBuffer): string {
         let binary = '';
         const bytes = new Uint8Array(buffer);
         const len = bytes.byteLength;
@@ -86,14 +95,14 @@ class CryptoUtils {
     }
 }
 
-class ImageUploader {
+export class ImageUploader {
     /**
      * Upload blob to configured storage
-     * @param {Blob} blob 
-     * @param {string} filename 
-     * @param {Object} config 
+     * @param blob 
+     * @param filename 
+     * @param config 
      */
-    static async upload(blob, filename, config) {
+    static async upload(blob: Blob, filename: string, config: any): Promise<string> {
         if (!config || !config.enabled) throw new Error("Upload disabled");
 
         // Generate path
@@ -109,7 +118,7 @@ class ImageUploader {
         throw new Error("Unknown provider");
     }
 
-    static async uploadAliyun(blob, objectKey, config) {
+    static async uploadAliyun(blob: Blob, objectKey: string, config: any): Promise<string> {
         const date = new Date().toUTCString();
         const contentType = blob.type || 'application/octet-stream';
         const bucket = config.bucket;
@@ -147,7 +156,7 @@ class ImageUploader {
         return `https://${host}/${objectKey}`;
     }
 
-    static async uploadS3(blob, objectKey, config) {
+    static async uploadS3(blob: Blob, objectKey: string, config: any): Promise<string> {
         const region = config.region || 'us-east-1';
         const bucket = config.bucket;
         // Handle endpoint normalization
@@ -161,7 +170,7 @@ class ImageUploader {
         }
 
         const isAws = endpoint.includes('amazonaws.com');
-        let url, host, uriPath;
+        let url: string, host: string, uriPath: string;
 
         if (!isAws) {
             // Path compatible (MinIO)
@@ -204,12 +213,12 @@ class ImageUploader {
         const stringToSign = `${algorithm}\n${amzDate}\n${credentialScope}\n${canonicalRequestHash}`;
 
         // 3. Signature
-        const getSignatureKey = async (key, date, region, service) => {
+        const getSignatureKey = async (key: string, date: string, region: string, service: string) => {
             const kDate = await CryptoUtils.hmacSha256("AWS4" + key, date);
             const kRegion = await CryptoUtils.hmacSha256(kDate, region);
             const kService = await CryptoUtils.hmacSha256(kRegion, service);
             const kSigning = await CryptoUtils.hmacSha256(kService, "aws4_request");
-            return kSigning;
+            return new Uint8Array(kSigning);
         };
 
         const signingKey = await getSignatureKey(config.accessKeySecret, dateStamp, region, service);
@@ -246,21 +255,23 @@ class ImageUploader {
     }
 }
 
-class DomUtils {
+export class DomUtils {
     /**
      * Wait for an element to appear in the DOM.
-     * @param {string} selector - CSS selector.
+     * @param selector - CSS selector.
      * @returns {Promise<Element>}
      */
-    static waitForElement(selector) {
+    static waitForElement(selector: string): Promise<Element> {
         return new Promise(resolve => {
-            if (document.querySelector(selector)) {
-                return resolve(document.querySelector(selector));
+            const existing = document.querySelector(selector);
+            if (existing) {
+                return resolve(existing);
             }
 
-            const observer = new MutationObserver(mutations => {
-                if (document.querySelector(selector)) {
-                    resolve(document.querySelector(selector));
+            const observer = new MutationObserver(() => {
+                const el = document.querySelector(selector);
+                if (el) {
+                    resolve(el);
                     observer.disconnect();
                 }
             });
@@ -274,22 +285,22 @@ class DomUtils {
 
     /**
      * Create an element with optional attributes and children.
-     * @param {string} tag
-     * @param {Object} attributes
-     * @param {Array<Node|string>} children
+     * @param tag
+     * @param attributes
+     * @param children
      * @returns {HTMLElement}
      */
-    static createElement(tag, attributes = {}, children = []) {
+    static createElement(tag: string, attributes: any = {}, children: Array<Node | string> = []): HTMLElement {
         const el = document.createElement(tag);
         for (const [key, value] of Object.entries(attributes)) {
-            if (key === 'style' && typeof value === 'object') {
+            if (key === 'style' && typeof value === 'object' && value !== null) {
                 Object.assign(el.style, value);
             } else if (key === 'className') {
-                el.className = value;
+                el.className = value as string;
             } else if (key.startsWith('on') && typeof value === 'function') {
-                el.addEventListener(key.substring(2).toLowerCase(), value);
+                el.addEventListener(key.substring(2).toLowerCase(), value as EventListener);
             } else {
-                el.setAttribute(key, value);
+                el.setAttribute(key, value as string);
             }
         }
         children.forEach(child => {

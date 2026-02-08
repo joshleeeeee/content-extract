@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OnlineDocExporter",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Powerful tool to copy/export online documents (Feishu/Lark etc.) as Markdown or Rich Text.",
   "permissions": [
     "activeTab",
@@ -10,8 +10,12 @@
     "storage",
     "unlimitedStorage"
   ],
+  "host_permissions": [
+    "http://localhost/*"
+  ],
   "background": {
-    "service_worker": "js/background.js"
+    "service_worker": "src/background/index.ts",
+    "type": "module"
   },
   "content_scripts": [
     {
@@ -21,15 +25,13 @@
         "*://*.zhipin.com/*"
       ],
       "js": [
-        "js/utils.js",
-        "js/adapters.js",
-        "js/main.js"
+        "src/content/main.ts"
       ],
       "run_at": "document_idle"
     }
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Feishu Copy Master"
+    "default_title": "OnlineDocExporter"
   }
 }

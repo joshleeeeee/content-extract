@@ -1,19 +1,20 @@
+import { PlatformAdapterFactory } from './adapters';
+
 class App {
     static init() {
-        if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.onMessage) {
-            console.warn('Feishu Copy Extension: chrome.runtime.onMessage is not available. This content script might be orphaned or running in an invalid context.');
+        // Check if context is still valid
+        if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
+            console.warn('OnlineDocExporter: Extension context invalidated. Please refresh the page.');
             return;
         }
 
-        console.log('Feishu Copy Extension: Listener Initialized');
+        console.log('OnlineDocExporter: Content Script Initialized');
 
-        try {
-            // Listen for messages from popup
-            chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        if (chrome.runtime.onMessage) {
+            chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
                 if (request.action === 'EXTRACT_CONTENT') {
                     App.handleExtraction(request.format, request.options)
                         .then(result => {
-                            // Support returning object { content, images } or just string
                             if (typeof result === 'object' && result.content) {
                                 sendResponse({ success: true, title: document.title, ...result });
                             } else {
@@ -21,9 +22,9 @@ class App {
                             }
                         })
                         .catch(error => sendResponse({ success: false, error: error.message }));
-
                     return true;
                 }
+
                 if (request.action === 'SCAN_LINKS') {
                     App.handleScan()
                         .then(links => sendResponse({ success: true, links }))
@@ -31,8 +32,6 @@ class App {
                     return true;
                 }
             });
-        } catch (e) {
-            console.error('Feishu Copy Extension: Failed to add listener', e);
         }
     }
 
@@ -49,13 +48,11 @@ class App {
         }
     }
 
-    static async handleExtraction(format, options) {
+    static async handleExtraction(format: string, options: any) {
         try {
             const adapter = PlatformAdapterFactory.getAdapter(format, options);
             if (!adapter) {
-                // Return generic error or fallback
-                // If generic adapter existed, it would be here
-                throw new Error('This page is not supported by Feishu Copy Extension.');
+                throw new Error('当前页面不受插件支持。');
             }
             return await adapter.extract();
         } catch (e) {

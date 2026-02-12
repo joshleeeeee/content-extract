@@ -8,6 +8,7 @@ const settingsStore = useSettingsStore()
 
 const isScanning = ref(false)
 const selectedIndexes = ref<Set<number>>(new Set())
+const batchFormat = ref<'markdown' | 'pdf'>('markdown')
 const showTips = ref({
   sidebar: localStorage.getItem('dismissed-tip-sidebar') !== 'true',
   scroll: localStorage.getItem('dismissed-tip-scroll') !== 'true'
@@ -73,7 +74,7 @@ const handleStartBatch = () => {
   const items = Array.from(selectedIndexes.value).map(idx => batchStore.scannedLinks[idx])
   if (items.length === 0) return
 
-  batchStore.startBatch(items, 'markdown', {
+  batchStore.startBatch(items, batchFormat.value, {
     imageMode: settingsStore.imageMode,
     foreground: settingsStore.foreground,
     scrollWaitTime: settingsStore.scrollWaitTime,
@@ -97,30 +98,57 @@ onUnmounted(() => {
 <template>
   <div class="flex flex-col h-full">
     <!-- Batch Actions -->
-    <div class="flex gap-3 mb-4">
-      <button 
-        @click="scanLinks"
-        :disabled="isScanning || batchStore.isProcessing"
-        class="flex-1 flex items-center justify-center gap-2 h-11 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-500/20"
-      >
-        <template v-if="isScanning">
-          <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-          <span>正在扫描...</span>
-        </template>
-        <template v-else>
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <span>扫描页面</span>
-        </template>
-      </button>
+    <div class="flex flex-col gap-3 mb-4">
+      <div class="flex gap-3">
+        <button 
+          @click="scanLinks"
+          :disabled="isScanning || batchStore.isProcessing"
+          class="flex-1 flex items-center justify-center gap-2 h-11 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-500/20"
+        >
+          <template v-if="isScanning">
+            <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <span>正在扫描...</span>
+          </template>
+          <template v-else>
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <span>扫描页面</span>
+          </template>
+        </button>
 
-      <button 
-        @click="handleStartBatch"
-        :disabled="selectedIndexes.size === 0 || batchStore.isProcessing"
-        class="flex-1 flex items-center justify-center gap-2 h-11 rounded-xl bg-white dark:bg-gray-800 border-2 border-blue-600 text-blue-600 font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50 transition-all"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
-        <span>开始抓取 ({{ selectedIndexes.size }})</span>
-      </button>
+        <button 
+          @click="handleStartBatch"
+          :disabled="selectedIndexes.size === 0 || batchStore.isProcessing"
+          class="flex-1 flex items-center justify-center gap-2 h-11 rounded-xl bg-white dark:bg-gray-800 border-2 border-blue-600 text-blue-600 font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50 transition-all"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+          <span>开始抓取 ({{ selectedIndexes.size }})</span>
+        </button>
+      </div>
+
+      <!-- Format Selector -->
+      <div class="flex items-center gap-2 px-1">
+        <span class="text-xs font-bold text-gray-500">导出格式</span>
+        <div class="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+          <button
+            @click="batchFormat = 'markdown'"
+            :class="[
+              'px-3 py-1 text-xs font-bold rounded-md transition-all',
+              batchFormat === 'markdown'
+                ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-sm'
+                : 'text-gray-400 hover:text-gray-600'
+            ]"
+          >Markdown</button>
+          <button
+            @click="batchFormat = 'pdf'"
+            :class="[
+              'px-3 py-1 text-xs font-bold rounded-md transition-all',
+              batchFormat === 'pdf'
+                ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-sm'
+                : 'text-gray-400 hover:text-gray-600'
+            ]"
+          >PDF</button>
+        </div>
+      </div>
     </div>
 
     <!-- Tips -->

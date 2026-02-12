@@ -96,6 +96,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
             const lightResults = processedResults.map(r => ({
                 url: r.url,
                 title: r.title,
+                format: r.format,
                 size: r.size || 0,
                 status: r.status,
                 timestamp: r.timestamp,
@@ -204,14 +205,19 @@ async function processNextItem() {
                 throw new Error("Cancelled")
             }
 
+            const isPdfFormat = currentItem.format === 'pdf'
+
             let response: any = null
             for (let i = 0; i < 3; i++) {
                 try {
                     if (!currentItem || currentItem.url !== taskUrl || isPaused) break
                     response = await chrome.tabs.sendMessage(currentTabId, {
                         action: 'EXTRACT_CONTENT',
-                        format: currentItem.format || 'markdown',
-                        options: currentItem.options || { useBase64: true }
+                        // PDF mode: always extract as HTML with base64 images
+                        format: isPdfFormat ? 'html' : (currentItem.format || 'markdown'),
+                        options: isPdfFormat
+                            ? { ...currentItem.options, imageMode: 'base64' }
+                            : (currentItem.options || { useBase64: true })
                     })
                     if (response) break
                 } catch (e) {
@@ -226,12 +232,12 @@ async function processNextItem() {
             if (response && response.success) {
                 let title = currentItem.title || 'Untitled'
                 if (response.content) {
-                    if (currentItem.format === 'markdown') {
-                        const match = response.content.match(/^#\s+(.*)/)
-                        if (match) title = match[1]
-                    } else {
+                    if (isPdfFormat || currentItem.format === 'html') {
                         const match = response.content.match(/<h1>(.*?)<\/h1>/)
                         if (match) title = match[1].replace(/<[^>]+>/g, '')
+                    } else {
+                        const match = response.content.match(/^#\s+(.*)/)
+                        if (match) title = match[1]
                     }
                 }
 
@@ -244,18 +250,39 @@ async function processNextItem() {
                     }
                 }
 
-                const calculatedSize = Math.round((response.content ? response.content.length : 0) +
-                    (response.images ? response.images.reduce((sum: number, img: any) => sum + (img.base64 ? img.base64.length * 0.75 : 0), 0) : 0))
+                if (isPdfFormat) {
+                    // --- PDF Mode: Generate PDF via CDP and store base64 ---
+                    const pdfResult = await generateBatchPDF(response.content, title.trim())
+                    if (pdfResult.success && pdfResult.data) {
+                        const pdfSize = Math.round(pdfResult.data.length * 0.75) // base64 → byte size
+                        processedResults.push({
+                            url: taskUrl,
+                            title: title.trim(),
+                            format: 'pdf',
+                            content: pdfResult.data,  // PDF base64
+                            size: pdfSize,
+                            status: 'success',
+                            timestamp: Date.now()
+                        })
+                    } else {
+                        throw new Error(pdfResult.error || 'PDF generation failed')
+                    }
+                } else {
+                    // --- Markdown/HTML Mode: Store content directly ---
+                    const calculatedSize = Math.round((response.content ? response.content.length : 0) +
+                        (response.images ? response.images.reduce((sum: number, img: any) => sum + (img.base64 ? img.base64.length * 0.75 : 0), 0) : 0))
 
-                processedResults.push({
-                    url: taskUrl,
-                    title: title.trim(),
-                    content: response.content,
-                    images: response.images || [],
-                    size: calculatedSize,
-                    status: 'success',
-                    timestamp: Date.now()
-                })
+                    processedResults.push({
+                        url: taskUrl,
+                        title: title.trim(),
+                        format: currentItem.format || 'markdown',
+                        content: response.content,
+                        images: response.images || [],
+                        size: calculatedSize,
+                        status: 'success',
+                        timestamp: Date.now()
+                    })
+                }
             } else {
                 throw new Error(response ? response.error : 'Extraction failed')
             }
@@ -288,6 +315,50 @@ async function processNextItem() {
 }
 
 // ==================== CDP PDF Generation ====================
+
+async function generateBatchPDF(htmlContent: string, docTitle: string): Promise<{ success: boolean; data?: string; error?: string }> {
+    const html = buildPrintHTML(htmlContent, docTitle)
+    const tab = await chrome.tabs.create({ url: 'about:blank', active: false })
+    const tabId = tab.id!
+
+    try {
+        await waitForTabLoad(tabId)
+        await new Promise(r => setTimeout(r, 500))
+
+        await cdpAttach(tabId)
+        await cdpSend(tabId, 'Page.enable', {})
+        const frameTree = await cdpSend(tabId, 'Page.getFrameTree', {})
+        const frameId = (frameTree as any).frameTree.frame.id
+
+        await cdpSend(tabId, 'Page.setDocumentContent', { frameId, html })
+        await new Promise(r => setTimeout(r, 2000))
+
+        const pdf = await cdpSend(tabId, 'Page.printToPDF', {
+            landscape: false,
+            printBackground: true,
+            scale: 1,
+            paperWidth: 8.27,
+            paperHeight: 11.69,
+            marginTop: 0,
+            marginBottom: 0,
+            marginLeft: 0,
+            marginRight: 0,
+            preferCSSPageSize: true,
+            generateDocumentOutline: true,
+            generateTaggedPDF: true,
+            transferMode: 'ReturnAsBase64'
+        })
+
+        await cdpDetach(tabId)
+        try { await chrome.tabs.remove(tabId) } catch (_) { }
+
+        return { success: true, data: (pdf as any).data as string }
+    } catch (err: any) {
+        try { await cdpDetach(tabId) } catch (_) { }
+        try { await chrome.tabs.remove(tabId) } catch (_) { }
+        return { success: false, error: err.message }
+    }
+}
 
 function cdpAttach(tabId: number): Promise<void> {
     return new Promise((resolve, reject) => {

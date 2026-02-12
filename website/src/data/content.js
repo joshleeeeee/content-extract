@@ -10,10 +10,10 @@ export const content = {
             repo: "GitHub Repo"
         },
         hero: {
-            badge: "v1.5.0 is out now",
+            badge: "v1.6.0 is out now",
             titleStart: "Export Everything,",
             titleEnd: "Own Your Data",
-            description: "The ultimate universal content extractor for your browser. v1.5.0 introduces PDF Export with native bookmarks. From cloud docs to job listings, effortlessly convert online content into clean Markdown, Rich Text, or beautifully bookmarked PDFs.",
+            description: "The ultimate universal content extractor for your browser. v1.6.0 introduces Batch PDF Export — scan, queue, and download all documents as bookmarked PDFs in one click. From cloud docs to job listings, effortlessly convert online content into clean Markdown, Rich Text, or beautifully bookmarked PDFs.",
             addToChrome: "Add to Chrome",
             exploreFeatures: "Explore Features"
         },
@@ -39,7 +39,7 @@ export const content = {
                 },
                 {
                     title: "Automated Batching",
-                    description: "Automatically identifies capture targets on any page. Scan once and export everything in parallel."
+                    description: "Automatically identifies capture targets on any page. Scan once and batch export everything as Markdown or PDF with native bookmarks."
                 },
                 {
                     title: "Smart Content Merging",
@@ -103,10 +103,10 @@ export const content = {
             repo: "GitHub 仓库"
         },
         hero: {
-            badge: "v1.5.0 现已发布",
+            badge: "v1.6.0 现已发布",
             titleStart: "万物皆可导出",
             titleEnd: "数据回归自我",
-            description: "跨平台的在线内容提取神器。v1.5.0 新增 PDF 导出功能，自动生成原生书签目录。从云端文档到招聘信息，一键将碎片内容转化为 Markdown、富文本或高品质 PDF。内置智能扫描与自动化流，让知识管理更高效、更纯粹。",
+            description: "跨平台的在线内容提取神器。v1.6.0 新增批量 PDF 导出，扫描后一键将所有文档排队导出为带书签的高品质 PDF。从云端文档到招聘信息，一键将碎片内容转化为 Markdown、富文本或高品质 PDF。内置智能扫描与自动化流，让知识管理更高效、更纯粹。",
             addToChrome: "添加到 Chrome",
             exploreFeatures: "探索功能"
         },
@@ -132,7 +132,7 @@ export const content = {
                 },
                 {
                     title: "自动化批处理",
-                    description: "智能识别页面中的可提取目标。只需一键扫描，即可批量排队导出所有内容。"
+                    description: "智能识别页面中的可提取目标。一键扫描，支持选择 Markdown 或 PDF 格式，批量排队导出所有内容。"
                 },
                 {
                     title: "智能内容合并",

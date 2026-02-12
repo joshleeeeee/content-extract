@@ -39,14 +39,7 @@ const toggleSelectAll = (e: Event) => {
 
 const handleDownloadZip = async () => {
     const zip = new JSZip()
-    const selectedResults = batchStore.processedResults.filter(r => selectedUrls.value.has(r.url))
     
-    // In a real scenario, the background script stores the content. 
-    // For the migration, we assume the results in the store might need to be fetched 
-    // or are already available if recently processed.
-    // However, the original logic in popup.js suggests it relies on background state.
-    
-    // We send a message to background to get the full data for selected items
     chrome.runtime.sendMessage({ 
         action: 'GET_FULL_RESULTS', 
         urls: Array.from(selectedUrls.value) 
@@ -57,18 +50,23 @@ const handleDownloadZip = async () => {
 
             data.forEach((item: any) => {
                 const safeTitle = (item.title || 'document').replace(/[\\/:*?"<>|]/g, "_")
-                const filename = `${safeTitle}.md`
-                zip.file(filename, item.content || '')
-
-                // Process images if any
-                if (item.images && Array.isArray(item.images)) {
-                    item.images.forEach((img: any) => {
-                        if (img.base64 && img.filename) {
-                            // data:image/png;base64,.... -> take the part after comma
-                            const base64Data = img.base64.includes(',') ? img.base64.split(',')[1] : img.base64;
-                            imagesFolder?.file(img.filename, base64Data, { base64: true })
-                        }
-                    })
+                
+                if (item.format === 'pdf') {
+                    // PDF: decode base64 and add as .pdf
+                    if (item.content) {
+                        zip.file(`${safeTitle}.pdf`, item.content, { base64: true })
+                    }
+                } else {
+                    // Markdown: add as .md with images
+                    zip.file(`${safeTitle}.md`, item.content || '')
+                    if (item.images && Array.isArray(item.images)) {
+                        item.images.forEach((img: any) => {
+                            if (img.base64 && img.filename) {
+                                const base64Data = img.base64.includes(',') ? img.base64.split(',')[1] : img.base64;
+                                imagesFolder?.file(img.filename, base64Data, { base64: true })
+                            }
+                        })
+                    }
                 }
             })
 
@@ -108,38 +106,54 @@ const handleSingleDownload = async (item: BatchItem) => {
             const data = response.data[0]
             const safeTitle = (data.title || 'document').replace(/[\\/:*?"<>|]/g, "_")
             
-            const hasImages = data.images && data.images.length > 0
-            
-            if (hasImages) {
-                // Download as ZIP if images exist
-                const zip = new JSZip()
-                const ext = '.md' // Batch currently only supports MD export in this view
-                zip.file(`${safeTitle}${ext}`, data.content || '')
-                
-                const imagesFolder = zip.folder("images")
-                data.images.forEach((img: any) => {
-                    if (img.base64 && img.filename) {
-                        const base64Data = img.base64.includes(',') ? img.base64.split(',')[1] : img.base64;
-                        imagesFolder?.file(img.filename, base64Data, { base64: true })
+            if (data.format === 'pdf') {
+                // PDF: decode base64 and download as .pdf
+                if (data.content) {
+                    const byteChars = atob(data.content)
+                    const byteArray = new Uint8Array(byteChars.length)
+                    for (let i = 0; i < byteChars.length; i++) {
+                        byteArray[i] = byteChars.charCodeAt(i)
                     }
-                })
-
-                const blob = await zip.generateAsync({ type: "blob" })
-                const dlUrl = URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = dlUrl
-                a.download = `${safeTitle}.zip`
-                a.click()
-                URL.revokeObjectURL(dlUrl)
+                    const blob = new Blob([byteArray], { type: 'application/pdf' })
+                    const dlUrl = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = dlUrl
+                    a.download = `${safeTitle}.pdf`
+                    a.click()
+                    URL.revokeObjectURL(dlUrl)
+                }
             } else {
-                // Download file directly if no images
-                const blob = new Blob([data.content || ''], { type: 'text/markdown' })
-                const dlUrl = URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = dlUrl
-                a.download = `${safeTitle}.md`
-                a.click()
-                URL.revokeObjectURL(dlUrl)
+                // Markdown: existing logic
+                const hasImages = data.images && data.images.length > 0
+                
+                if (hasImages) {
+                    const zip = new JSZip()
+                    zip.file(`${safeTitle}.md`, data.content || '')
+                    
+                    const imagesFolder = zip.folder("images")
+                    data.images.forEach((img: any) => {
+                        if (img.base64 && img.filename) {
+                            const base64Data = img.base64.includes(',') ? img.base64.split(',')[1] : img.base64;
+                            imagesFolder?.file(img.filename, base64Data, { base64: true })
+                        }
+                    })
+
+                    const blob = await zip.generateAsync({ type: "blob" })
+                    const dlUrl = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = dlUrl
+                    a.download = `${safeTitle}.zip`
+                    a.click()
+                    URL.revokeObjectURL(dlUrl)
+                } else {
+                    const blob = new Blob([data.content || ''], { type: 'text/markdown' })
+                    const dlUrl = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = dlUrl
+                    a.download = `${safeTitle}.md`
+                    a.click()
+                    URL.revokeObjectURL(dlUrl)
+                }
             }
         }
     })
@@ -232,7 +246,9 @@ const handleSingleDownload = async (item: BatchItem) => {
           <div class="flex-1 min-w-0">
              <div class="flex items-center gap-1.5 mb-0.5">
                 <span :class="[item.status === 'success' ? 'text-gray-700 dark:text-gray-200' : 'text-gray-400']" class="text-xs font-bold truncate flex-1 uppercase tracking-tight">{{ item.title }}</span>
-                <span v-if="item.size" class="text-xs font-mono text-gray-400">{{ formatSize(item.size) }}</span>
+                <span v-if="item.format === 'pdf'" class="text-[9px] font-black text-red-500 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded uppercase border border-red-100 dark:border-red-800 shrink-0">PDF</span>
+                <span v-else-if="item.format === 'markdown'" class="text-[9px] font-black text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded uppercase border border-blue-100 dark:border-blue-800 shrink-0">MD</span>
+                <span v-if="item.size" class="text-xs font-mono text-gray-400 shrink-0">{{ formatSize(item.size) }}</span>
              </div>
              <div class="text-[11px] text-gray-400 truncate opacity-60">{{ item.url }}</div>
           </div>

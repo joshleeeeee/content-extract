@@ -4,6 +4,7 @@ import { ref } from 'vue'
 export interface BatchItem {
     url: string
     title: string
+    format?: string
     status?: 'pending' | 'processing' | 'success' | 'failed'
     size?: number
 }

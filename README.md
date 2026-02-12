@@ -1,6 +1,6 @@
 # 🚀 OnlineDocExporter (在线文档助手)
 
-[![Version](https://img.shields.io/badge/version-v1.5.0-blue.svg)](https://github.com/joshleeeeee/online-doc-exporter)
+[![Version](https://img.shields.io/badge/version-v1.6.0-blue.svg)](https://github.com/joshleeeeee/online-doc-exporter)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Chrome%20%7C%20Edge%20%7C%20Lark-lightgrey.svg)](https://github.com/joshleeeeee/online-doc-exporter)
 
@@ -26,7 +26,7 @@
 - **🚀 极速导出**: 一键将当前文档转换为 Markdown 或富文本。
 - **📄 PDF 导出**: 一键下载为高质量 PDF，自动根据 H1/H2/H3 标题生成 **原生 PDF 书签**，静默生成无需打印对话框。
 - **🤖 多平台适配**: 完美支持 **飞书/Lark** 文档及 **BOSS 直聘** 职位信息提取。
-- **📦 批量抓取**: 自动扫描页面中的文档链接或职位卡片，支持一键排队抓取。
+- **📦 批量抓取**: 自动扫描页面中的文档链接或职位卡片，支持选择 **Markdown 或 PDF** 格式，一键排队抓取。
 - **🔗 智能合并**: 针对 BOSS 直聘等场景，支持将多篇内容自动合并为一份文档导出。
 - **🔍 实时检测**: 插件 Popup 自动检测网页支持状态，智能切换抓取模式。
 - **⚡ 下载中心**: 内置下载管理，支持打包为 ZIP，支持历史记录持久化。
@@ -61,7 +61,8 @@
    - PDF 自动包含 **书签目录**（基于 H1/H2/H3 标题结构），便于大文档导航。
 3. **批量抓取**:
    - 在包含多个文档链接的页面（如知识库首页、列表页）点击“批量抓取”。
-   - 点击“扫描链接”，勾选目标文档后点击“开始抓取”。
+   - 点击“扫描链接”，选择导出格式（Markdown 或 PDF），勾选目标文档后点击“开始抓取”。
+   - 批量 PDF 导出时，每篇文档自动生成带书签目录的高品质 PDF。
 4. **高级设置 (图床/本地)**:
    - 点击右上角设置图标，可以配置 OSS/MinIO/S3 的详细参数。
    - 如果选择“下载到本地 (ZIP)”，抓取完成后在下载中心打包下载时，图片会自动包含在压缩包中。
@@ -78,7 +79,7 @@
 - [x] **智能网站支持检测** (v1.3.0)
 - [x] **UI 极简风格重构与下载中心优化** (v1.4.0)
 - [x] **PDF 导出与原生书签** (v1.5.0)
-- [ ] **批量 PDF 导出**: 将批量抓取结果直接导出为 PDF 文件。
+- [x] **批量 PDF 导出** (v1.6.0): 批量抓取支持选择 PDF 格式，自动生成带书签的 PDF 并存入下载中心，支持打包下载。
 - [ ] **多平台兼容**: 持续扩展支持 语雀、钉钉文档、Notion 等。
 - [ ] **自定义模版**: 允许用户自定义导出的 Markdown 样式与 Frontmatter。
 

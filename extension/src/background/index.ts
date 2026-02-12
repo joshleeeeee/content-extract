@@ -152,6 +152,49 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 
             await saveState()
             sendResponse({ success: true })
+        } else if (request.action === 'RETRY_BATCH_ITEM') {
+            const { url } = request
+            const failedItem = processedResults.find(r => r.url === url && r.status === 'failed')
+            if (failedItem) {
+                // Remove from processed results
+                processedResults = processedResults.filter(r => r.url !== url)
+                // Re-queue with original format/options
+                BATCH_QUEUE.push({
+                    url: failedItem.url,
+                    title: failedItem.title,
+                    format: failedItem.format,
+                    options: failedItem.options,
+                    status: 'pending'
+                })
+                isPaused = false
+                if (!isProcessing) {
+                    processNextItem()
+                }
+                await saveState()
+                sendResponse({ success: true })
+            } else {
+                sendResponse({ success: false, error: 'Item not found or not failed' })
+            }
+        } else if (request.action === 'RETRY_ALL_FAILED') {
+            const failedItems = processedResults.filter(r => r.status === 'failed')
+            if (failedItems.length > 0) {
+                processedResults = processedResults.filter(r => r.status !== 'failed')
+                failedItems.forEach(item => {
+                    BATCH_QUEUE.push({
+                        url: item.url,
+                        title: item.title,
+                        format: item.format,
+                        options: item.options,
+                        status: 'pending'
+                    })
+                })
+                isPaused = false
+                if (!isProcessing) {
+                    processNextItem()
+                }
+                await saveState()
+            }
+            sendResponse({ success: true, count: failedItems.length })
         } else if (request.action === 'GENERATE_PDF') {
             const { title } = request
             generatePDF(title)
@@ -292,6 +335,8 @@ async function processNextItem() {
             processedResults.push({
                 url: taskUrl,
                 title: currentItem.title || 'Failed Doc',
+                format: currentItem.format,
+                options: currentItem.options,
                 status: 'failed',
                 error: err.message,
                 timestamp: Date.now()

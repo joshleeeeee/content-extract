@@ -147,7 +147,11 @@ export class FeishuAdapter extends BaseAdapter {
             'a[href*="/base/"]',
             'a[href*="/file/"]',
             '.table-view .workspace-dnd-source',
-            '.table-view [data-obj-token]'
+            '.table-view [data-obj-token]',
+            // Feishu Drive folder file list items
+            '[data-e2e="file-list-item"]',
+            '.file-list-item',
+            '.explorer-file-list [data-obj-token]',
         ];
 
         const nodes = document.querySelectorAll(selectors.join(', '));
@@ -175,8 +179,14 @@ export class FeishuAdapter extends BaseAdapter {
             }
 
             if (!url) {
-                const firstLink = node.querySelector('a[href]');
-                if (firstLink) url = (firstLink as any).href;
+                // Try finding a doc link inside the element (e.g. Drive file-list-item)
+                const docLink = node.querySelector('a[href*="/docx/"], a[href*="/docs/"], a[href*="/wiki/"], a[href*="/sheets/"], a[href*="/base/"], a[href*="/file/"]') as HTMLAnchorElement;
+                if (docLink) {
+                    url = docLink.href;
+                } else {
+                    const firstLink = node.querySelector('a[href]');
+                    if (firstLink) url = (firstLink as any).href;
+                }
             }
 
             if (!url || typeof url !== 'string') return;
@@ -185,15 +195,20 @@ export class FeishuAdapter extends BaseAdapter {
 
             if (links.has(url)) return;
             if (url.startsWith('http') && !url.includes('feishu.cn') && !url.includes('larksuite.com')) return;
-            if (!url.match(/\/(docs|docx|wiki|sheets|base|file)\//)) return;
+            if (!url.match(/\/(docs|docx|wiki|sheets|base|file|drive)\//)) return;
 
             let title = '';
-            const titleNode = node.querySelector('.workspace-dnd-node-content, .tree-node-title, .catalog-tree-node-text, .explorer-node-title');
+            const titleNode = node.querySelector('.workspace-dnd-node-content, .tree-node-title, .catalog-tree-node-text, .explorer-node-title, .file-item-name, [class*="fileName"]');
             if (titleNode) {
                 title = titleNode.getAttribute('title') || titleNode.textContent || '';
             }
             if (!title) title = (node as any).title || '';
             if (!title && node.classList.contains('mention-doc')) title = node.textContent || '';
+            // For Drive file-list-items, try to get the file name from the link text
+            if (!title && (node.classList.contains('file-list-item') || node.getAttribute('data-e2e') === 'file-list-item')) {
+                const nameEl = node.querySelector('[class*="file"][class*="name"], .file-item-link, a[title]') as HTMLElement;
+                if (nameEl) title = nameEl.getAttribute('title') || nameEl.textContent?.trim() || '';
+            }
             if (!title) title = node.textContent?.trim() || '';
 
             title = title.trim().replace(/^(快捷方式|便捷方式)[:：]\s*/, "");

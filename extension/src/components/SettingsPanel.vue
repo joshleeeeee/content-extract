@@ -17,6 +17,12 @@ const providers = [
   { value: 'aliyun', label: '阿里云 OSS' },
   { value: 's3', label: 'S3 / MinIO' },
 ]
+
+const concurrencyOptions = [
+  { value: 1, label: '1', desc: '最稳' },
+  { value: 2, label: '2', desc: '均衡' },
+  { value: 3, label: '3', desc: '更快' },
+]
 </script>
 
 <template>
@@ -148,6 +154,31 @@ const providers = [
           <span>均衡 (1.5s)</span>
           <span>稳健 (3.0s)</span>
         </div>
+      </div>
+
+      <div class="space-y-3 p-1">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-medium">批量并发数</span>
+          <span class="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/40 px-2 py-0.5 rounded-md">
+            {{ settings.batchConcurrency }} 路
+          </span>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <button
+            v-for="item in concurrencyOptions"
+            :key="item.value"
+            @click="settings.batchConcurrency = item.value"
+            :class="[
+              'h-10 rounded-lg border text-xs font-bold transition-all',
+              settings.batchConcurrency === item.value
+                ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600'
+                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-emerald-300'
+            ]"
+          >
+            {{ item.label }} 路 · {{ item.desc }}
+          </button>
+        </div>
+        <p class="text-[10px] text-gray-400 px-1">系统会根据失败率和缓存体积动态降速，优先保证稳定性。</p>
       </div>
     </section>
   </div>

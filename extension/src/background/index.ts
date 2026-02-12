@@ -18,6 +18,85 @@ let processedResults: BatchItem[] = []
 let currentItem: BatchItem | null = null
 let currentTabId: number | null = null
 let isReady = false
+const activeTasks = new Map<string, { item: BatchItem; tabId: number | null; startedAt: number }>()
+const cancelledTaskUrls = new Set<string>()
+
+const MAX_BATCH_CONCURRENCY = 3
+const THROTTLE_COOLDOWN_MS = 45_000
+const STORAGE_THROTTLE_LV1_BYTES = 350 * 1024 * 1024
+const STORAGE_THROTTLE_LV2_BYTES = 650 * 1024 * 1024
+
+let configuredConcurrency = 1
+let throttledConcurrency = 1
+let throttleCooldownUntil = 0
+
+function normalizeBatchConcurrency(value: any): number {
+    const n = Number(value)
+    if (!Number.isFinite(n)) return 1
+    return Math.max(1, Math.min(MAX_BATCH_CONCURRENCY, Math.round(n)))
+}
+
+function updateConfiguredConcurrencyFromOptions(options?: any) {
+    const next = normalizeBatchConcurrency(options?.batchConcurrency)
+    configuredConcurrency = next
+    throttledConcurrency = Math.min(throttledConcurrency, configuredConcurrency)
+    if (throttledConcurrency < 1) throttledConcurrency = 1
+}
+
+function updateConfiguredConcurrency(value: any) {
+    updateConfiguredConcurrencyFromOptions({ batchConcurrency: value })
+}
+
+function getStoredResultBytes() {
+    return processedResults.reduce((sum, item) => sum + (item.size || 0), 0)
+}
+
+function getEffectiveConcurrency() {
+    const now = Date.now()
+    if (now > throttleCooldownUntil && throttledConcurrency < configuredConcurrency) {
+        throttledConcurrency += 1
+    }
+
+    let limit = Math.min(configuredConcurrency, throttledConcurrency)
+    const storedBytes = getStoredResultBytes()
+
+    if (storedBytes > STORAGE_THROTTLE_LV2_BYTES) {
+        limit = 1
+    } else if (storedBytes > STORAGE_THROTTLE_LV1_BYTES) {
+        limit = Math.min(limit, 2)
+    }
+
+    return Math.max(1, Math.min(MAX_BATCH_CONCURRENCY, limit))
+}
+
+function recordTaskOutcome(success: boolean) {
+    if (success) return
+    throttledConcurrency = Math.max(1, throttledConcurrency - 1)
+    throttleCooldownUntil = Date.now() + THROTTLE_COOLDOWN_MS
+}
+
+function syncRuntimeState() {
+    const firstActive = activeTasks.values().next().value as { item: BatchItem; tabId: number | null } | undefined
+    currentItem = firstActive?.item || null
+    currentTabId = firstActive?.tabId ?? null
+    isProcessing = activeTasks.size > 0 || BATCH_QUEUE.length > 0
+}
+
+function isTaskCancelled(url: string) {
+    return isPaused || cancelledTaskUrls.has(url)
+}
+
+async function cancelActiveTasks() {
+    const tabsToClose: number[] = []
+    for (const [url, task] of activeTasks.entries()) {
+        cancelledTaskUrls.add(url)
+        if (task.tabId) tabsToClose.push(task.tabId)
+    }
+
+    await Promise.all(tabsToClose.map(async (tabId) => {
+        try { await chrome.tabs.remove(tabId) } catch (_) { }
+    }))
+}
 
 const preparePromise = new Promise<void>((resolve) => {
     chrome.storage.local.get(['batchQueue', 'processedResults', 'isProcessing', 'isPaused'], (data) => {
@@ -43,12 +122,13 @@ const preparePromise = new Promise<void>((resolve) => {
         }
         if (data.isPaused !== undefined) isPaused = !!data.isPaused
 
+        // Recover desired concurrency from queued task options after service worker wake-up
+        updateConfiguredConcurrencyFromOptions(BATCH_QUEUE[0]?.options)
+
         if (data && data.isProcessing && BATCH_QUEUE.length > 0 && !isPaused) {
-            isProcessing = true
-            processNextItem()
-        } else {
-            isProcessing = !!(data ? data.isProcessing : false)
+            void ensureProcessing()
         }
+        syncRuntimeState()
         isReady = true
         resolve()
     })
@@ -72,9 +152,11 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
                 return
             }
 
+            updateConfiguredConcurrencyFromOptions(options)
+
             items.forEach((item: any) => {
                 const isInQueue = BATCH_QUEUE.some(q => q.url === item.url)
-                const isCurrent = currentItem && currentItem.url === item.url
+                const isCurrent = activeTasks.has(item.url)
                 if (!isInQueue && !isCurrent) {
                     BATCH_QUEUE.push({
                         url: item.url,
@@ -87,11 +169,16 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
             })
 
             isPaused = false
-            if (!isProcessing) {
-                processNextItem()
-            }
-            await saveState()
+            await ensureProcessing()
             sendResponse({ success: true, message: 'Started' })
+        } else if (request.action === 'SET_BATCH_CONCURRENCY') {
+            updateConfiguredConcurrency(request.value)
+            await ensureProcessing()
+            sendResponse({
+                success: true,
+                configuredConcurrency,
+                effectiveConcurrency: getEffectiveConcurrency()
+            })
         } else if (request.action === 'GET_BATCH_STATUS') {
             const lightResults = processedResults.map(r => ({
                 url: r.url,
@@ -107,7 +194,10 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
                 isPaused,
                 queueLength: BATCH_QUEUE.length,
                 results: lightResults,
-                currentItem: currentItem
+                currentItem: currentItem,
+                activeCount: activeTasks.size,
+                configuredConcurrency,
+                effectiveConcurrency: getEffectiveConcurrency()
             })
         } else if (request.action === 'GET_FULL_RESULTS') {
             const { urls } = request
@@ -115,26 +205,22 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
             sendResponse({ success: true, data: fullItems })
         } else if (request.action === 'PAUSE_BATCH') {
             isPaused = true
-            isProcessing = false
+            await cancelActiveTasks()
+            syncRuntimeState()
             await saveState()
             sendResponse({ success: true })
         } else if (request.action === 'RESUME_BATCH') {
             isPaused = false
-            if (!isProcessing && BATCH_QUEUE.length > 0) {
-                processNextItem()
-            }
-            await saveState()
+            await ensureProcessing()
             sendResponse({ success: true })
         } else if (request.action === 'CLEAR_BATCH_RESULTS') {
+            await cancelActiveTasks()
             processedResults = []
             BATCH_QUEUE = []
-            isProcessing = false
             isPaused = false
-            if (currentTabId) {
-                try { chrome.tabs.remove(currentTabId) } catch (e) { }
-            }
-            currentItem = null
-            currentTabId = null
+            activeTasks.clear()
+            cancelledTaskUrls.clear()
+            syncRuntimeState()
             await saveState()
             sendResponse({ success: true })
         } else if (request.action === 'DELETE_BATCH_ITEM') {
@@ -142,14 +228,15 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
             processedResults = processedResults.filter(item => item.url !== url)
             BATCH_QUEUE = BATCH_QUEUE.filter(item => item.url !== url)
 
-            if (currentItem && currentItem.url === url) {
-                if (currentTabId) {
-                    try { chrome.tabs.remove(currentTabId) } catch (e) { }
+            const running = activeTasks.get(url)
+            if (running) {
+                cancelledTaskUrls.add(url)
+                if (running.tabId) {
+                    try { await chrome.tabs.remove(running.tabId) } catch (_) { }
                 }
-                currentItem = null
-                currentTabId = null
             }
 
+            syncRuntimeState()
             await saveState()
             sendResponse({ success: true })
         } else if (request.action === 'RETRY_BATCH_ITEM') {
@@ -167,10 +254,8 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
                     status: 'pending'
                 })
                 isPaused = false
-                if (!isProcessing) {
-                    processNextItem()
-                }
-                await saveState()
+                updateConfiguredConcurrencyFromOptions(failedItem.options)
+                await ensureProcessing()
                 sendResponse({ success: true })
             } else {
                 sendResponse({ success: false, error: 'Item not found or not failed' })
@@ -189,10 +274,10 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
                     })
                 })
                 isPaused = false
-                if (!isProcessing) {
-                    processNextItem()
+                if (failedItems[0]) {
+                    updateConfiguredConcurrencyFromOptions(failedItems[0].options)
                 }
-                await saveState()
+                await ensureProcessing()
             }
             sendResponse({ success: true, count: failedItems.length })
         } else if (request.action === 'GENERATE_PDF') {
@@ -205,156 +290,160 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     return true
 })
 
-async function processNextItem() {
+async function ensureProcessing() {
     if (isPaused) {
-        isProcessing = false
-        return
-    }
-
-    if (BATCH_QUEUE.length === 0) {
-        isProcessing = false
-        currentItem = null
-        currentTabId = null
+        syncRuntimeState()
         await saveState()
         return
     }
 
-    isProcessing = true
-    currentItem = BATCH_QUEUE.shift() || null
-    await saveState()
-
-    if (!currentItem) {
-        isProcessing = false
-        return
+    let spawned = false
+    while (BATCH_QUEUE.length > 0 && activeTasks.size < getEffectiveConcurrency()) {
+        const next = BATCH_QUEUE.shift()
+        if (!next) break
+        spawned = true
+        void runBatchItem(next)
     }
 
-    const taskUrl = currentItem.url
+    syncRuntimeState()
+    if (spawned || !isProcessing) {
+        await saveState()
+    }
+}
+
+async function runBatchItem(item: BatchItem) {
+    const taskUrl = item.url
+    let tabId: number | null = null
+    let success = false
+
+    activeTasks.set(taskUrl, {
+        item,
+        tabId: null,
+        startedAt: Date.now()
+    })
+    syncRuntimeState()
+    await saveState()
+
     try {
-        const isForeground = currentItem.options && currentItem.options.foreground
+        const isForeground = item.options && item.options.foreground
         const tab = await chrome.tabs.create({ url: taskUrl, active: !!isForeground })
-        currentTabId = tab.id || null
+        tabId = tab.id || null
 
-        if (currentTabId) {
-            await waitForTabLoad(currentTabId)
+        const task = activeTasks.get(taskUrl)
+        if (task) task.tabId = tabId
+        syncRuntimeState()
 
-            if (!currentItem || currentItem.url !== taskUrl || isPaused) {
-                throw new Error("Cancelled")
-            }
+        if (!tabId) throw new Error('Tab create failed')
+        if (isTaskCancelled(taskUrl)) throw new Error('Cancelled')
 
-            // Wait for content scripts to initialize
-            await new Promise(r => setTimeout(r, 4000))
+        await waitForTabLoad(tabId)
+        if (isTaskCancelled(taskUrl)) throw new Error('Cancelled')
 
-            if (!currentItem || currentItem.url !== taskUrl || isPaused) {
-                throw new Error("Cancelled")
-            }
+        // Wait for content scripts to initialize
+        await new Promise(r => setTimeout(r, 4000))
+        if (isTaskCancelled(taskUrl)) throw new Error('Cancelled')
 
-            const isPdfFormat = currentItem.format === 'pdf'
-
-            let response: any = null
-            for (let i = 0; i < 3; i++) {
-                try {
-                    if (!currentItem || currentItem.url !== taskUrl || isPaused) break
-                    response = await chrome.tabs.sendMessage(currentTabId, {
-                        action: 'EXTRACT_CONTENT',
-                        // PDF mode: always extract as HTML with base64 images
-                        format: isPdfFormat ? 'html' : (currentItem.format || 'markdown'),
-                        options: isPdfFormat
-                            ? { ...currentItem.options, imageMode: 'base64' }
-                            : (currentItem.options || { useBase64: true })
-                    })
-                    if (response) break
-                } catch (e) {
-                    await new Promise(r => setTimeout(r, 2000))
-                }
-            }
-
-            if (!currentItem || currentItem.url !== taskUrl || isPaused) {
-                throw new Error("Cancelled")
-            }
-
-            if (response && response.success) {
-                let title = currentItem.title || 'Untitled'
-                if (response.content) {
-                    if (isPdfFormat || currentItem.format === 'html') {
-                        const match = response.content.match(/<h1>(.*?)<\/h1>/)
-                        if (match) title = match[1].replace(/<[^>]+>/g, '')
-                    } else {
-                        const match = response.content.match(/^#\s+(.*)/)
-                        if (match) title = match[1]
-                    }
-                }
-
-                if (title === 'Untitled' || !title) {
-                    try {
-                        const updatedTab = await chrome.tabs.get(currentTabId)
-                        title = updatedTab.title || 'Doc ' + Date.now()
-                    } catch (e) {
-                        title = 'Doc ' + Date.now()
-                    }
-                }
-
-                if (isPdfFormat) {
-                    // --- PDF Mode: Generate PDF via CDP and store base64 ---
-                    const pdfResult = await generateBatchPDF(response.content, title.trim())
-                    if (pdfResult.success && pdfResult.data) {
-                        const pdfSize = Math.round(pdfResult.data.length * 0.75) // base64 → byte size
-                        processedResults.push({
-                            url: taskUrl,
-                            title: title.trim(),
-                            format: 'pdf',
-                            content: pdfResult.data,  // PDF base64
-                            size: pdfSize,
-                            status: 'success',
-                            timestamp: Date.now()
-                        })
-                    } else {
-                        throw new Error(pdfResult.error || 'PDF generation failed')
-                    }
-                } else {
-                    // --- Markdown/HTML Mode: Store content directly ---
-                    const calculatedSize = Math.round((response.content ? response.content.length : 0) +
-                        (response.images ? response.images.reduce((sum: number, img: any) => sum + (img.base64 ? img.base64.length * 0.75 : 0), 0) : 0))
-
-                    processedResults.push({
-                        url: taskUrl,
-                        title: title.trim(),
-                        format: currentItem.format || 'markdown',
-                        content: response.content,
-                        images: response.images || [],
-                        size: calculatedSize,
-                        status: 'success',
-                        timestamp: Date.now()
-                    })
-                }
-            } else {
-                throw new Error(response ? response.error : 'Extraction failed')
+        const isPdfFormat = item.format === 'pdf'
+        let response: any = null
+        for (let i = 0; i < 3; i++) {
+            try {
+                if (isTaskCancelled(taskUrl)) break
+                response = await chrome.tabs.sendMessage(tabId, {
+                    action: 'EXTRACT_CONTENT',
+                    // PDF mode: always extract as HTML with base64 images
+                    format: isPdfFormat ? 'html' : (item.format || 'markdown'),
+                    options: isPdfFormat
+                        ? { ...item.options, imageMode: 'base64' }
+                        : (item.options || { useBase64: true })
+                })
+                if (response) break
+            } catch (_) {
+                await new Promise(r => setTimeout(r, 2000))
             }
         }
-    } catch (err: any) {
-        if (err.message !== "Cancelled" && currentItem && currentItem.url === taskUrl) {
+
+        if (isTaskCancelled(taskUrl)) throw new Error('Cancelled')
+        if (!response || !response.success) {
+            throw new Error(response ? response.error : 'Extraction failed')
+        }
+
+        let title = item.title || 'Untitled'
+        if (response.content) {
+            if (isPdfFormat || item.format === 'html') {
+                const match = response.content.match(/<h1>(.*?)<\/h1>/)
+                if (match) title = match[1].replace(/<[^>]+>/g, '')
+            } else {
+                const match = response.content.match(/^#\s+(.*)/)
+                if (match) title = match[1]
+            }
+        }
+
+        if (title === 'Untitled' || !title) {
+            try {
+                const updatedTab = await chrome.tabs.get(tabId)
+                title = updatedTab.title || 'Doc ' + Date.now()
+            } catch (_) {
+                title = 'Doc ' + Date.now()
+            }
+        }
+
+        if (isPdfFormat) {
+            const pdfResult = await generateBatchPDF(response.content, title.trim())
+            if (!pdfResult.success || !pdfResult.data) {
+                throw new Error(pdfResult.error || 'PDF generation failed')
+            }
+
             processedResults.push({
                 url: taskUrl,
-                title: currentItem.title || 'Failed Doc',
-                format: currentItem.format,
-                options: currentItem.options,
+                title: title.trim(),
+                format: 'pdf',
+                content: pdfResult.data,
+                size: Math.round(pdfResult.data.length * 0.75),
+                status: 'success',
+                timestamp: Date.now()
+            })
+        } else {
+            const calculatedSize = Math.round((response.content ? response.content.length : 0) +
+                (response.images ? response.images.reduce((sum: number, img: any) => sum + (img.base64 ? img.base64.length * 0.75 : 0), 0) : 0))
+
+            processedResults.push({
+                url: taskUrl,
+                title: title.trim(),
+                format: item.format || 'markdown',
+                content: response.content,
+                images: response.images || [],
+                size: calculatedSize,
+                status: 'success',
+                timestamp: Date.now()
+            })
+        }
+
+        success = true
+    } catch (err: any) {
+        if (err.message !== 'Cancelled' && !cancelledTaskUrls.has(taskUrl)) {
+            processedResults.push({
+                url: taskUrl,
+                title: item.title || 'Failed Doc',
+                format: item.format,
+                options: item.options,
                 status: 'failed',
                 error: err.message,
                 timestamp: Date.now()
             })
         }
     } finally {
-        if (currentTabId) {
-            try { await chrome.tabs.remove(currentTabId) } catch (e) { }
+        if (tabId) {
+            try { await chrome.tabs.remove(tabId) } catch (_) { }
         }
 
-        currentItem = null
-        currentTabId = null
+        activeTasks.delete(taskUrl)
+        cancelledTaskUrls.delete(taskUrl)
+        recordTaskOutcome(success)
+        syncRuntimeState()
         await saveState()
 
         if (!isPaused) {
-            setTimeout(processNextItem, 1000)
-        } else {
-            isProcessing = false
+            setTimeout(() => { void ensureProcessing() }, 300)
         }
     }
 }

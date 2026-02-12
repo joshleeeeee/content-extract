@@ -5,8 +5,10 @@ export interface BatchItem {
     url: string
     title: string
     format?: string
+    options?: any
     status?: 'pending' | 'processing' | 'success' | 'failed'
     size?: number
+    error?: string
 }
 
 export const useBatchStore = defineStore('batch', () => {
@@ -63,6 +65,14 @@ export const useBatchStore = defineStore('batch', () => {
         })
     }
 
+    const retryItem = (url: string) => {
+        chrome.runtime.sendMessage({ action: 'RETRY_BATCH_ITEM', url }, () => updateStatus())
+    }
+
+    const retryAllFailed = () => {
+        chrome.runtime.sendMessage({ action: 'RETRY_ALL_FAILED' }, () => updateStatus())
+    }
+
     return {
         scannedLinks,
         processedResults,
@@ -75,6 +85,8 @@ export const useBatchStore = defineStore('batch', () => {
         startBatch,
         pauseBatch,
         resumeBatch,
-        clearResults
+        clearResults,
+        retryItem,
+        retryAllFailed
     }
 })

@@ -1,6 +1,6 @@
 # 🚀 OnlineDocExporter (在线文档助手)
 
-[![Version](https://img.shields.io/badge/version-v1.6.0-blue.svg)](https://github.com/joshleeeeee/online-doc-exporter)
+[![Version](https://img.shields.io/badge/version-v1.6.1-blue.svg)](https://github.com/joshleeeeee/online-doc-exporter)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Chrome%20%7C%20Edge%20%7C%20Lark-lightgrey.svg)](https://github.com/joshleeeeee/online-doc-exporter)
 
@@ -80,6 +80,7 @@
 - [x] **UI 极简风格重构与下载中心优化** (v1.4.0)
 - [x] **PDF 导出与原生书签** (v1.5.0)
 - [x] **批量 PDF 导出** (v1.6.0): 批量抓取支持选择 PDF 格式，自动生成带书签的 PDF 并存入下载中心，支持打包下载。
+- [x] **滚动扫描、失败重试与分卷打包** (v1.6.1): 新增自动滚动扫描链接、失败任务一键重试，以及大批量导出按卷自动拆分 ZIP。
 - [ ] **多平台兼容**: 持续扩展支持 语雀、钉钉文档、Notion 等。
 - [ ] **自定义模版**: 允许用户自定义导出的 Markdown 样式与 Frontmatter。
 

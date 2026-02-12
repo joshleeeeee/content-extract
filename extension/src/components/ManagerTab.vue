@@ -6,7 +6,11 @@ import JSZip from 'jszip'
 const batchStore = useBatchStore()
 const selectedUrls = ref<Set<string>>(new Set())
 
-const MAX_ZIP_SIZE_MB = 300
+const VOLUME_SIZE_MB = 200
+const VOLUME_SIZE_BYTES = VOLUME_SIZE_MB * 1024 * 1024
+
+const isDownloading = ref(false)
+const downloadProgress = ref('')
 
 const formatSize = (bytes: number = 0) => {
   if (bytes < 1024) return bytes + ' B'
@@ -24,7 +28,31 @@ const totalSelectedSize = computed(() => {
   return total
 })
 
-const isLimitExceeded = computed(() => totalSelectedSize.value > MAX_ZIP_SIZE_MB * 1024 * 1024)
+// Group selected items into volumes by cumulative size
+const volumes = computed(() => {
+  const items = batchStore.processedResults.filter(r =>
+    selectedUrls.value.has(r.url) && r.status === 'success'
+  )
+  const groups: (typeof items)[] = []
+  let currentGroup: typeof items = []
+  let currentSize = 0
+
+  for (const item of items) {
+    const itemSize = item.size || 0
+    if (currentGroup.length > 0 && currentSize + itemSize > VOLUME_SIZE_BYTES) {
+      groups.push(currentGroup)
+      currentGroup = [item]
+      currentSize = itemSize
+    } else {
+      currentGroup.push(item)
+      currentSize += itemSize
+    }
+  }
+  if (currentGroup.length > 0) groups.push(currentGroup)
+  return groups
+})
+
+const volumeCount = computed(() => volumes.value.length)
 
 const toggleSelectAll = (e: Event) => {
   const checked = (e.target as HTMLInputElement).checked
@@ -37,48 +65,83 @@ const toggleSelectAll = (e: Event) => {
   }
 }
 
-const handleDownloadZip = async () => {
-    const zip = new JSZip()
-    
-    chrome.runtime.sendMessage({ 
-        action: 'GET_FULL_RESULTS', 
-        urls: Array.from(selectedUrls.value) 
-    }, async (response) => {
-        if (response && response.success) {
-            const data = response.data
-            const imagesFolder = zip.folder("images")
-
-            data.forEach((item: any) => {
-                const safeTitle = (item.title || 'document').replace(/[\\/:*?"<>|]/g, "_")
-                
-                if (item.format === 'pdf') {
-                    // PDF: decode base64 and add as .pdf
-                    if (item.content) {
-                        zip.file(`${safeTitle}.pdf`, item.content, { base64: true })
-                    }
-                } else {
-                    // Markdown: add as .md with images
-                    zip.file(`${safeTitle}.md`, item.content || '')
-                    if (item.images && Array.isArray(item.images)) {
-                        item.images.forEach((img: any) => {
-                            if (img.base64 && img.filename) {
-                                const base64Data = img.base64.includes(',') ? img.base64.split(',')[1] : img.base64;
-                                imagesFolder?.file(img.filename, base64Data, { base64: true })
-                            }
-                        })
-                    }
-                }
-            })
-
-            const blob = await zip.generateAsync({ type: "blob" })
-            const dlUrl = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = dlUrl
-            a.download = `Batch_Export_${new Date().getTime()}.zip`
-            a.click()
-            URL.revokeObjectURL(dlUrl)
-        }
+const fetchSingleResult = (url: string): Promise<any> => {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({
+      action: 'GET_FULL_RESULTS',
+      urls: [url]
+    }, (response) => {
+      resolve(response?.success && response.data?.length > 0 ? response.data[0] : null)
     })
+  })
+}
+
+const handleDownloadZip = async () => {
+  const vols = volumes.value
+  if (vols.length === 0) return
+
+  isDownloading.value = true
+  const timestamp = new Date().getTime()
+
+  try {
+    for (let vi = 0; vi < vols.length; vi++) {
+      const vol = vols[vi]
+      const zip = new JSZip()
+      const imagesFolder = zip.folder("images")
+
+      // Fetch items one-by-one to avoid Chrome's 64MiB message limit
+      for (let fi = 0; fi < vol.length; fi++) {
+        const totalIndex = vols.slice(0, vi).reduce((s, v) => s + v.length, 0) + fi + 1
+        const totalItems = vols.reduce((s, v) => s + v.length, 0)
+        downloadProgress.value = vols.length > 1
+          ? `卷${vi + 1}/${vols.length} · 第 ${totalIndex}/${totalItems} 个`
+          : `第 ${fi + 1}/${vol.length} 个...`
+
+        const item = await fetchSingleResult(vol[fi].url)
+        if (!item) continue
+
+        const safeTitle = (item.title || 'document').replace(/[\\/:*?"<>|]/g, "_")
+
+        if (item.format === 'pdf') {
+          if (item.content) {
+            zip.file(`${safeTitle}.pdf`, item.content, { base64: true })
+          }
+        } else {
+          zip.file(`${safeTitle}.md`, item.content || '')
+          if (item.images && Array.isArray(item.images)) {
+            item.images.forEach((img: any) => {
+              if (img.base64 && img.filename) {
+                const base64Data = img.base64.includes(',') ? img.base64.split(',')[1] : img.base64
+                imagesFolder?.file(img.filename, base64Data, { base64: true })
+              }
+            })
+          }
+        }
+      }
+
+      downloadProgress.value = vols.length > 1
+        ? `正在打包卷 ${vi + 1}...`
+        : '正在打包...'
+
+      const blob = await zip.generateAsync({ type: "blob" })
+      const dlUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = dlUrl
+      a.download = vols.length > 1
+        ? `Batch_Export_${timestamp}_Vol${vi + 1}.zip`
+        : `Batch_Export_${timestamp}.zip`
+      a.click()
+      URL.revokeObjectURL(dlUrl)
+
+      // Delay between volumes to avoid browser blocking multiple downloads
+      if (vi < vols.length - 1) {
+        await new Promise(r => setTimeout(r, 1500))
+      }
+    }
+  } finally {
+    isDownloading.value = false
+    downloadProgress.value = ''
+  }
 }
 
 const handleClear = () => {
@@ -94,6 +157,16 @@ const deleteItem = (url: string) => {
     selectedUrls.value.delete(url)
   })
 }
+
+const retryItem = (url: string) => {
+  batchStore.retryItem(url)
+}
+
+const retryAllFailed = () => {
+  batchStore.retryAllFailed()
+}
+
+const failedCount = computed(() => batchStore.processedResults.filter(r => r.status === 'failed').length)
 
 const openUrl = (url: string) => window.open(url, '_blank')
 
@@ -170,7 +243,7 @@ const handleSingleDownload = async (item: BatchItem) => {
       </div>
       <div class="p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
         <div class="text-xs uppercase tracking-wider font-bold text-gray-400 mb-1">已选大小</div>
-        <div :class="[isLimitExceeded ? 'text-red-500' : 'text-gray-700 dark:text-gray-200']" class="text-xl font-black transition-colors">{{ formatSize(totalSelectedSize) }}</div>
+        <div class="text-xl font-black text-gray-700 dark:text-gray-200">{{ formatSize(totalSelectedSize) }}</div>
       </div>
     </div>
 
@@ -178,19 +251,35 @@ const handleSingleDownload = async (item: BatchItem) => {
     <div class="flex gap-2 mb-4">
       <button 
         @click="handleDownloadZip"
-        :disabled="selectedUrls.size === 0 || isLimitExceeded"
+        :disabled="selectedUrls.size === 0 || isDownloading"
         class="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 disabled:opacity-40 transition-all shadow-lg shadow-blue-500/10"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        <span>导出已选 ({{ selectedUrls.size }})</span>
+        <template v-if="isDownloading">
+          <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+          <span>{{ downloadProgress }}</span>
+        </template>
+        <template v-else>
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>导出已选 ({{ selectedUrls.size }})<template v-if="volumeCount > 1"> · {{ volumeCount }} 卷</template></span>
+        </template>
       </button>
 
       <button 
         @click="handleClear"
-        class="w-10 h-10 flex items-center justify-center rounded-xl border-2 border-red-100 dark:border-red-900/30 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+        class="w-10 h-10 flex items-center justify-center rounded-xl border-2 border-red-100 dark:border-red-900/30 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors shrink-0"
         title="清空所有记录"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+      </button>
+
+      <button 
+        v-if="failedCount > 0"
+        @click="retryAllFailed"
+        class="flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl border-2 border-amber-200 dark:border-amber-900/40 text-amber-600 dark:text-amber-400 text-xs font-bold hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-colors shrink-0"
+        title="重试全部失败任务"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+        <span>重试 ({{ failedCount }})</span>
       </button>
     </div>
 
@@ -205,7 +294,7 @@ const handleSingleDownload = async (item: BatchItem) => {
         >
         <span class="text-xs font-bold text-gray-500">全选成品</span>
       </label>
-      <span class="text-[10px] text-gray-400">限制: {{ MAX_ZIP_SIZE_MB }}MB</span>
+      <span class="text-[10px] text-gray-400">每卷 ≤ {{ VOLUME_SIZE_MB }}MB<template v-if="volumeCount > 1"> · 共 {{ volumeCount }} 卷</template></span>
     </div>
 
     <!-- Manager List -->
@@ -251,11 +340,15 @@ const handleSingleDownload = async (item: BatchItem) => {
                 <span v-if="item.size" class="text-xs font-mono text-gray-400 shrink-0">{{ formatSize(item.size) }}</span>
              </div>
              <div class="text-[11px] text-gray-400 truncate opacity-60">{{ item.url }}</div>
+             <div v-if="item.status === 'failed' && item.error" class="text-[10px] text-red-400 mt-0.5 truncate" :title="item.error">❌ {{ item.error }}</div>
           </div>
 
           <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button v-if="item.status === 'success'" @click="handleSingleDownload(item)" class="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg text-gray-400 hover:text-blue-600" title="常规下载">
                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
+            <button v-if="item.status === 'failed'" @click="retryItem(item.url)" class="p-1.5 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg text-gray-400 hover:text-amber-600" title="重试">
+               <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
             </button>
             <button @click="openUrl(item.url)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-400 hover:text-blue-500" title="打开链接">
                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>

@@ -19,6 +19,8 @@ export const useBatchStore = defineStore('batch', () => {
     const currentItem = ref<BatchItem | null>(null)
     const queueLength = ref(0)
     const progressPercent = ref(0)
+    const activeCount = ref(0)
+    const effectiveConcurrency = ref(1)
 
     const updateStatus = async () => {
         return new Promise<void>((resolve) => {
@@ -29,10 +31,11 @@ export const useBatchStore = defineStore('batch', () => {
                     processedResults.value = res.results || []
                     currentItem.value = res.currentItem || null
                     queueLength.value = res.queueLength || 0
+                    activeCount.value = res.activeCount || 0
+                    effectiveConcurrency.value = res.effectiveConcurrency || 1
 
                     const finishedCount = processedResults.value.length
-                    const activeCount = currentItem.value ? 1 : 0
-                    const total = finishedCount + activeCount + queueLength.value
+                    const total = finishedCount + activeCount.value + queueLength.value
 
                     progressPercent.value = total > 0 ? (finishedCount / total) * 100 : 0
                 }
@@ -81,6 +84,8 @@ export const useBatchStore = defineStore('batch', () => {
         currentItem,
         queueLength,
         progressPercent,
+        activeCount,
+        effectiveConcurrency,
         updateStatus,
         startBatch,
         pauseBatch,

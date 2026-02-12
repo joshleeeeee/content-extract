@@ -8,9 +8,19 @@ const selectedUrls = ref<Set<string>>(new Set())
 
 const VOLUME_SIZE_MB = 200
 const VOLUME_SIZE_BYTES = VOLUME_SIZE_MB * 1024 * 1024
+const MEMORY_WATERLINE_MB = 140
+const MEMORY_WATERLINE_BYTES = MEMORY_WATERLINE_MB * 1024 * 1024
+const ZIP_HEAP_SOFT_LIMIT_MB = 320
+const ZIP_HEAP_HARD_LIMIT_MB = 420
 
 const isDownloading = ref(false)
 const downloadProgress = ref('')
+
+const getHeapUsageMb = () => {
+  const mem = (performance as any)?.memory
+  if (!mem?.usedJSHeapSize) return null
+  return mem.usedJSHeapSize / (1024 * 1024)
+}
 
 const formatSize = (bytes: number = 0) => {
   if (bytes < 1024) return bytes + ' B'
@@ -39,7 +49,8 @@ const volumes = computed(() => {
 
   for (const item of items) {
     const itemSize = item.size || 0
-    if (currentGroup.length > 0 && currentSize + itemSize > VOLUME_SIZE_BYTES) {
+    const maxChunkBytes = Math.min(VOLUME_SIZE_BYTES, MEMORY_WATERLINE_BYTES)
+    if (currentGroup.length > 0 && currentSize + itemSize > maxChunkBytes) {
       groups.push(currentGroup)
       currentGroup = [item]
       currentSize = itemSize
@@ -77,7 +88,7 @@ const fetchSingleResult = (url: string): Promise<any> => {
 }
 
 const handleDownloadZip = async () => {
-  const vols = volumes.value
+  const vols = volumes.value.map(v => [...v])
   if (vols.length === 0) return
 
   isDownloading.value = true
@@ -88,6 +99,7 @@ const handleDownloadZip = async () => {
       const vol = vols[vi]
       const zip = new JSZip()
       const imagesFolder = zip.folder("images")
+      let shouldSplitEarly = false
 
       // Fetch items one-by-one to avoid Chrome's 64MiB message limit
       for (let fi = 0; fi < vol.length; fi++) {
@@ -117,6 +129,19 @@ const handleDownloadZip = async () => {
             })
           }
         }
+
+        const heapMb = getHeapUsageMb()
+        if (heapMb && heapMb > ZIP_HEAP_SOFT_LIMIT_MB) {
+          await new Promise(r => setTimeout(r, 250))
+        }
+        if (heapMb && heapMb > ZIP_HEAP_HARD_LIMIT_MB && fi < vol.length - 1) {
+          shouldSplitEarly = true
+          const remaining = vol.slice(fi + 1)
+          if (remaining.length > 0) {
+            vols.splice(vi + 1, 0, remaining)
+          }
+          break
+        }
       }
 
       downloadProgress.value = vols.length > 1
@@ -135,7 +160,7 @@ const handleDownloadZip = async () => {
 
       // Delay between volumes to avoid browser blocking multiple downloads
       if (vi < vols.length - 1) {
-        await new Promise(r => setTimeout(r, 1500))
+        await new Promise(r => setTimeout(r, shouldSplitEarly ? 2000 : 1500))
       }
     }
   } finally {
@@ -294,7 +319,7 @@ const handleSingleDownload = async (item: BatchItem) => {
         >
         <span class="text-xs font-bold text-gray-500">全选成品</span>
       </label>
-      <span class="text-[10px] text-gray-400">每卷 ≤ {{ VOLUME_SIZE_MB }}MB<template v-if="volumeCount > 1"> · 共 {{ volumeCount }} 卷</template></span>
+      <span class="text-[10px] text-gray-400">每卷 ≤ {{ Math.min(VOLUME_SIZE_MB, MEMORY_WATERLINE_MB) }}MB<template v-if="volumeCount > 1"> · 共 {{ volumeCount }} 卷</template></span>
     </div>
 
     <!-- Manager List -->
@@ -310,7 +335,10 @@ const handleSingleDownload = async (item: BatchItem) => {
            <div class="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin shrink-0"></div>
            <div class="flex-1 min-w-0">
              <div class="text-xs font-bold text-blue-700 dark:text-blue-400 truncate">{{ batchStore.currentItem.title }}</div>
-             <div class="text-[9px] text-blue-500 mt-0.5">正在抓取内容并预处理图片...</div>
+             <div class="text-[9px] text-blue-500 mt-0.5">
+               正在抓取内容并预处理图片...
+               <template v-if="batchStore.activeCount > 1">（另有 {{ batchStore.activeCount - 1 }} 个并发任务）</template>
+             </div>
            </div>
         </div>
 

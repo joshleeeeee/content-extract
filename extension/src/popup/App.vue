@@ -312,7 +312,7 @@ onUnmounted(() => {
           <div :style="{ width: batchStore.progressPercent + '%' }" class="h-full bg-white transition-all duration-500"></div>
        </div>
        <div class="text-[11px] opacity-90 font-medium">
-          已完成 {{ batchStore.processedResults.length }} / 共 {{ batchStore.processedResults.length + batchStore.queueLength + (batchStore.currentItem ? 1 : 0) }}
+          已完成 {{ batchStore.processedResults.length }} / 共 {{ batchStore.processedResults.length + batchStore.queueLength + batchStore.activeCount }} · 并发 {{ batchStore.effectiveConcurrency }}
        </div>
     </div>
 

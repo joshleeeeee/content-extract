@@ -123,6 +123,7 @@ const handleStartBatch = () => {
   batchStore.startBatch(items, batchFormat.value, {
     imageMode: settingsStore.imageMode,
     foreground: settingsStore.foreground,
+    batchConcurrency: settingsStore.batchConcurrency,
     scrollWaitTime: settingsStore.scrollWaitTime,
     imageConfig: {
       enabled: settingsStore.imageMode === 'minio',

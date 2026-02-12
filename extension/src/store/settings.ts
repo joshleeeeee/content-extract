@@ -18,6 +18,7 @@ export const useSettingsStore = defineStore('settings', () => {
     const foreground = ref(localStorage.getItem('feishu-copy-foreground') === 'true')
     const mergeBatch = ref(localStorage.getItem('feishu-copy-merge-batch') === 'true')
     const scrollWaitTime = ref(parseInt(localStorage.getItem('feishu-copy-scroll-speed') || '1500'))
+    const batchConcurrency = ref(Math.max(1, Math.min(3, parseInt(localStorage.getItem('feishu-copy-batch-concurrency') || '1'))))
 
     const ossConfig = ref<OssConfig>(JSON.parse(localStorage.getItem('feishu-copy-oss-config') || '{}'))
     if (!ossConfig.value.provider) {
@@ -38,6 +39,22 @@ export const useSettingsStore = defineStore('settings', () => {
     watch(foreground, (val) => localStorage.setItem('feishu-copy-foreground', String(val)))
     watch(mergeBatch, (val) => localStorage.setItem('feishu-copy-merge-batch', String(val)))
     watch(scrollWaitTime, (val) => localStorage.setItem('feishu-copy-scroll-speed', String(val)))
+    const syncBatchConcurrencyToBackground = (val: number) => {
+        const normalized = Math.max(1, Math.min(3, val))
+        chrome.runtime.sendMessage({
+            action: 'SET_BATCH_CONCURRENCY',
+            value: normalized
+        }, () => {
+            // Consume runtime error in case service worker is sleeping or reloading
+            void chrome.runtime.lastError
+        })
+    }
+
+    watch(batchConcurrency, (val) => {
+        const normalized = Math.max(1, Math.min(3, val))
+        localStorage.setItem('feishu-copy-batch-concurrency', String(normalized))
+        syncBatchConcurrencyToBackground(normalized)
+    }, { immediate: true })
     watch(ossConfig, (val) => localStorage.setItem('feishu-copy-oss-config', JSON.stringify(val)), { deep: true })
 
     // --- Actions ---
@@ -58,6 +75,7 @@ export const useSettingsStore = defineStore('settings', () => {
         foreground,
         mergeBatch,
         scrollWaitTime,
+        batchConcurrency,
         ossConfig,
         setMergeBatchContextAware
     }

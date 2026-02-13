@@ -28,6 +28,30 @@ const formatSize = (bytes: number = 0) => {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
+const sanitizeDownloadName = (name?: string) => {
+  const raw = (name || 'document')
+  let safe = raw
+    .replace(/[\\/]/g, '_')
+    .replace(/[<>:"|?*#%&{}$!@`+=~^]/g, '')
+    .replace(/[\x00-\x1f\x7f]/g, '')
+    .replace(/^\.+/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!safe) safe = 'document'
+  if (safe.length > 200) safe = safe.slice(0, 200)
+  return safe
+}
+
+const normalizeExportTitle = (title?: string) => {
+  const raw = (title || '').trim()
+  if (!raw) return ''
+  return raw
+    .replace(/\s*[-|｜]\s*(feishu|lark)\s*docs?$/i, '')
+    .replace(/\s*[-|｜]\s*飞书(云)?文档$/i, '')
+    .replace(/\s*[-|｜]\s*文档$/i, '')
+    .trim()
+}
+
 const totalSelectedSize = computed(() => {
   let total = 0
   batchStore.processedResults.forEach(r => {
@@ -120,7 +144,7 @@ const handleDownloadZip = async () => {
         const item = await fetchSingleResult(vol[fi].url)
         if (!item) continue
 
-        const safeTitle = (item.title || 'document').replace(/[\\/:*?"<>|]/g, "_")
+        const safeTitle = sanitizeDownloadName(normalizeExportTitle(item.title) || item.title || 'document')
 
         if (item.format === 'pdf') {
           if (item.content) {
@@ -129,7 +153,7 @@ const handleDownloadZip = async () => {
         } else if (item.archiveBase64 || item.archiveStorageKey) {
           const archiveBase64 = item.archiveBase64 || (item.archiveStorageKey ? await fetchArchiveBase64ByKey(item.archiveStorageKey) : null)
           if (archiveBase64) {
-            zip.file(item.archiveName || `${safeTitle}.zip`, archiveBase64, { base64: true })
+            zip.file(`${safeTitle}.zip`, archiveBase64, { base64: true })
           }
         } else {
           zip.file(`${safeTitle}.md`, item.content || '')
@@ -220,7 +244,7 @@ const handleSingleDownload = async (item: BatchItem) => {
     }, async (response) => {
         if (response && response.success && response.data.length > 0) {
             const data = response.data[0]
-            const safeTitle = (data.title || 'document').replace(/[\\/:*?"<>|]/g, "_")
+            const safeTitle = sanitizeDownloadName(normalizeExportTitle(data.title) || data.title || 'document')
             
             if (data.format === 'pdf') {
                 // PDF: decode base64 and download as .pdf
@@ -250,7 +274,7 @@ const handleSingleDownload = async (item: BatchItem) => {
                 const dlUrl = URL.createObjectURL(blob)
                 const a = document.createElement('a')
                 a.href = dlUrl
-                a.download = data.archiveName || `${safeTitle}.zip`
+                a.download = `${safeTitle}.zip`
                 a.click()
                 URL.revokeObjectURL(dlUrl)
             } else {

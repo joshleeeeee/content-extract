@@ -212,7 +212,7 @@ onUnmounted(() => {
       <button 
         @click="handleStartBatch"
         :disabled="selectedIndexes.size === 0 || batchStore.isProcessing"
-        class="batch-start-btn group relative w-full flex items-center justify-center gap-3 h-14 rounded-2xl font-black text-base tracking-wide transition-all duration-500 disabled:opacity-40 disabled:cursor-not-allowed overflow-hidden"
+        class="batch-start-btn group relative w-full flex items-center justify-center gap-3 h-14 rounded-2xl font-black text-base tracking-wide transition-all duration-500 disabled:opacity-55 disabled:cursor-not-allowed overflow-hidden"
       >
         <!-- Animated gradient background -->
         <div class="absolute inset-0 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 transition-all duration-500"></div>
@@ -221,15 +221,15 @@ onUnmounted(() => {
         <div class="absolute inset-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] rounded-2xl"></div>
         <div class="absolute -inset-1 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 rounded-2xl blur-lg opacity-30 group-hover:opacity-50 transition-opacity duration-500 -z-10"></div>
         <!-- Content -->
-        <div class="relative flex items-center justify-center gap-3 text-white z-10">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <div class="relative flex items-center justify-center gap-3 text-white z-10 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
             <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
             <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
             <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
           </svg>
-          <span>开始抓取</span>
-          <span v-if="selectedIndexes.size > 0" class="bg-white/25 text-white text-xs font-black px-2 py-0.5 rounded-full">{{ selectedIndexes.size }}</span>
+          <span class="start-label">开始抓取</span>
+          <span v-if="selectedIndexes.size > 0" class="bg-white/35 text-white text-xs font-black px-2 py-0.5 rounded-full border border-white/35">{{ selectedIndexes.size }}</span>
         </div>
       </button>
     </div>
@@ -308,5 +308,9 @@ onUnmounted(() => {
 
 .batch-start-btn:not(:disabled) > div:last-of-type {
   animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.start-label {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 </style>

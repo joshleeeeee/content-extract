@@ -6,9 +6,9 @@ import JSZip from 'jszip'
 const batchStore = useBatchStore()
 const selectedUrls = ref<Set<string>>(new Set())
 
-const VOLUME_SIZE_MB = 200
+const VOLUME_SIZE_MB = 300
 const VOLUME_SIZE_BYTES = VOLUME_SIZE_MB * 1024 * 1024
-const MEMORY_WATERLINE_MB = 140
+const MEMORY_WATERLINE_MB = 300
 const MEMORY_WATERLINE_BYTES = MEMORY_WATERLINE_MB * 1024 * 1024
 const ZIP_HEAP_SOFT_LIMIT_MB = 320
 const ZIP_HEAP_HARD_LIMIT_MB = 420

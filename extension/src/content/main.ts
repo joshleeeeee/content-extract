@@ -321,6 +321,14 @@ class App {
         return (name || 'document').replace(/[\\/:*?"<>|]/g, "_");
     }
 
+    static normalizeExportTitle(title: string) {
+        return (title || '')
+            .replace(/\s*[-|｜]\s*(feishu|lark)\s*docs?$/i, '')
+            .replace(/\s*[-|｜]\s*飞书(云)?文档$/i, '')
+            .replace(/\s*[-|｜]\s*文档$/i, '')
+            .trim();
+    }
+
     static async withTimeout<T>(task: Promise<T>, timeoutMs: number, message: string): Promise<T> {
         let timer: number | null = null;
         try {
@@ -371,7 +379,8 @@ class App {
         const result = await App.handleExtraction(format, options) as { content?: string; images?: any[] };
         const content = result?.content || '';
         const images = Array.isArray(result?.images) ? result.images : [];
-        const safeTitle = App.sanitizeFilename(document.title || 'document');
+        const rawTitle = App.normalizeExportTitle(options?.batchItemTitle || document.title || 'document') || options?.batchItemTitle || document.title || 'document';
+        const safeTitle = App.sanitizeFilename(rawTitle);
 
         if (images.length > 0) {
             const zip = new JSZip();
@@ -404,7 +413,8 @@ class App {
         const result = await App.handleExtraction(format, options) as { content?: string; images?: any[] };
         const content = result?.content || '';
         const images = Array.isArray(result?.images) ? result.images : [];
-        const safeTitle = App.sanitizeFilename(document.title || 'document');
+        const rawTitle = App.normalizeExportTitle(options?.batchItemTitle || document.title || 'document') || options?.batchItemTitle || document.title || 'document';
+        const safeTitle = App.sanitizeFilename(rawTitle);
 
         const zip = new JSZip();
         const ext = format === 'html' ? '.html' : '.md';

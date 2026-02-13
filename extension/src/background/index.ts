@@ -441,15 +441,18 @@ async function runBatchItem(item: BatchItem) {
             }
         }
 
+        const normalizedTitle = normalizeExportTitle(title.trim()) || title.trim() || 'document'
+        const safeFilenameTitle = sanitizeFilename(normalizedTitle)
+
         if (isPdfFormat) {
-            const pdfResult = await generateBatchPDF(response.content, title.trim())
+            const pdfResult = await generateBatchPDF(response.content, normalizedTitle)
             if (!pdfResult.success || !pdfResult.data) {
                 throw new Error(pdfResult.error || 'PDF generation failed')
             }
 
             processedResults.push({
                 url: taskUrl,
-                title: title.trim(),
+                title: normalizedTitle,
                 format: 'pdf',
                 content: pdfResult.data,
                 size: Math.round(pdfResult.data.length * 0.75),
@@ -463,11 +466,11 @@ async function runBatchItem(item: BatchItem) {
 
             processedResults.push({
                 url: taskUrl,
-                title: title.trim(),
+                title: normalizedTitle,
                 format: item.format || 'markdown',
                 archiveBase64: response.archiveBase64,
                 archiveStorageKey: response.archiveStorageKey,
-                archiveName: response.archiveName || `${title.trim() || 'document'}.zip`,
+                archiveName: `${safeFilenameTitle}.zip`,
                 size: response.archiveSize || Math.round((response.archiveBase64?.length || 0) * 0.75),
                 status: 'success',
                 timestamp: Date.now()
@@ -478,7 +481,7 @@ async function runBatchItem(item: BatchItem) {
 
             processedResults.push({
                 url: taskUrl,
-                title: title.trim(),
+                title: normalizedTitle,
                 format: item.format || 'markdown',
                 content: response.content,
                 images: response.images || [],
@@ -712,6 +715,15 @@ function sanitizeFilename(name: string): string {
     if (!safe) return 'document'
     if (safe.length > 200) safe = safe.substring(0, 200)
     return safe
+}
+
+function normalizeExportTitle(title: string): string {
+    if (!title) return ''
+    return title
+        .replace(/\s*[-|｜]\s*(feishu|lark)\s*docs?$/i, '')
+        .replace(/\s*[-|｜]\s*飞书(云)?文档$/i, '')
+        .replace(/\s*[-|｜]\s*文档$/i, '')
+        .trim()
 }
 
 function buildPrintHTML(content: string, title: string): string {

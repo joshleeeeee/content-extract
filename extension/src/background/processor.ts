@@ -9,12 +9,15 @@ import {
 import { runtimeState } from './state'
 import { saveState } from './storage'
 import { waitForTabLoad } from './tabUtils'
-import type { BatchItem } from './types'
+import type { BatchQueueItem } from './types'
+import { normalizeExportFormat, normalizeTaskType } from './types'
+import { sendTabMessage } from '../infra/chrome/tabClient'
+import { CONTENT_ACTIONS } from '../shared/contracts/content'
 
 const EXTRACT_TIMEOUT_DEFAULT_MS = 6 * 60_000
 const EXTRACT_TIMEOUT_LOCAL_IMAGE_MS = 12 * 60_000
 
-function shouldForceForegroundForTask(item: BatchItem) {
+function shouldForceForegroundForTask(item: BatchQueueItem) {
     if (item.taskType !== 'review') return false
 
     const url = item.url || ''
@@ -37,7 +40,7 @@ function shouldForceForegroundForTask(item: BatchItem) {
 async function sendExtractMessage(tabId: number, payload: any, timeoutMs: number) {
     return await new Promise<any>((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error(`Extraction timeout after ${Math.round(timeoutMs / 1000)}s`)), timeoutMs)
-        chrome.tabs.sendMessage(tabId, payload)
+        sendTabMessage(tabId, payload)
             .then((res) => {
                 clearTimeout(timer)
                 resolve(res)
@@ -82,14 +85,15 @@ export async function ensureProcessing() {
     }
 }
 
-async function runBatchItem(item: BatchItem) {
+async function runBatchItem(item: BatchQueueItem) {
     const taskUrl = item.url
-    const taskType = item.taskType || item.options?.taskType || 'doc'
+    const taskType = normalizeTaskType(item.taskType || item.options?.taskType)
     const extractRequestId = `batch-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
     const forceForeground = shouldForceForegroundForTask(item)
     let tabId: number | null = null
     let success = false
 
+    item.status = 'processing'
     item.progressStartedAt = Date.now()
     item.progressRound = 0
     item.progressAdded = 0
@@ -145,8 +149,8 @@ async function runBatchItem(item: BatchItem) {
                 if (isTaskCancelled(taskUrl)) break
                 console.log(`[Batch] Extract start (${i + 1}/3): ${taskUrl}`)
                 response = await sendExtractMessage(tabId, {
-                    action: isLocalArchiveMode ? 'EXTRACT_LOCAL_ARCHIVE' : 'EXTRACT_CONTENT',
-                    format: isPdfFormat ? 'html' : (item.format || 'markdown'),
+                    action: isLocalArchiveMode ? CONTENT_ACTIONS.EXTRACT_LOCAL_ARCHIVE : CONTENT_ACTIONS.EXTRACT_CONTENT,
+                    format: isPdfFormat ? 'html' : normalizeExportFormat(item.format, taskType),
                     options: isPdfFormat
                         ? { ...item.options, imageMode: 'base64', batchItemTitle: item.title, extractRequestId }
                         : { ...(item.options || { useBase64: true }), batchItemTitle: item.title, extractRequestId }
@@ -202,6 +206,7 @@ async function runBatchItem(item: BatchItem) {
                 title: normalizedTitle,
                 taskType,
                 format: 'pdf',
+                resultKind: 'pdf',
                 content: pdfResult.data,
                 size: Math.round(pdfResult.data.length * 0.75),
                 status: 'success',
@@ -216,7 +221,8 @@ async function runBatchItem(item: BatchItem) {
                 url: taskUrl,
                 title: normalizedTitle,
                 taskType,
-                format: item.format || 'markdown',
+                format: normalizeExportFormat(item.format, taskType),
+                resultKind: 'archive',
                 archiveBase64: response.archiveBase64,
                 archiveStorageKey: response.archiveStorageKey,
                 archiveName: `${safeFilenameTitle}.zip`,
@@ -232,8 +238,9 @@ async function runBatchItem(item: BatchItem) {
                 url: taskUrl,
                 title: normalizedTitle,
                 taskType,
-                format: item.format || 'markdown',
-                content: response.content,
+                format: normalizeExportFormat(item.format, taskType),
+                resultKind: 'content',
+                content: response.content || '',
                 images: response.images || [],
                 size: calculatedSize,
                 status: 'success',
@@ -248,9 +255,10 @@ async function runBatchItem(item: BatchItem) {
                 url: taskUrl,
                 title: item.title || 'Failed Item',
                 taskType,
-                format: item.format,
+                format: normalizeExportFormat(item.format, taskType),
                 options: item.options,
                 status: 'failed',
+                size: 0,
                 error: err.message,
                 timestamp: Date.now()
             })

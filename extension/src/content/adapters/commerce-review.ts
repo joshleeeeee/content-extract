@@ -1,5 +1,6 @@
 import { BaseAdapter } from './base';
 import type { CommerceReviewAdapterConfig, ReviewFilterOptions, ReviewItem } from './review-types';
+import { RUNTIME_ACTIONS } from '../../shared/contracts/runtime';
 
 export abstract class CommerceReviewAdapter extends BaseAdapter {
     protected abstract readonly config: CommerceReviewAdapterConfig;
@@ -127,7 +128,7 @@ export abstract class CommerceReviewAdapter extends BaseAdapter {
 
         try {
             chrome.runtime.sendMessage({
-                action: 'EXTRACTION_PROGRESS',
+                action: RUNTIME_ACTIONS.EXTRACTION_PROGRESS,
                 requestId,
                 platform: this.config.platformKey,
                 taskType: 'review',

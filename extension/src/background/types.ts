@@ -1,23 +1,32 @@
-export interface BatchItem {
-    url: string
-    title: string
-    taskType?: 'doc' | 'review'
-    format?: string
-    options?: any
-    status: 'pending' | 'processing' | 'success' | 'failed'
-    size?: number
-    timestamp?: number
-    error?: string
-    content?: string
-    images?: any[]
-    archiveBase64?: string
-    archiveName?: string
-    archiveStorageKey?: string
-    progressMessage?: string
-    progressTotal?: number
-    progressRound?: number
-    progressAdded?: number
-    progressMaxRounds?: number
-    progressStartedAt?: number
-    strategyHint?: string
-}
+export type {
+    BatchArchiveResultItem,
+    BatchContentResultItem,
+    BatchFailedResultItem,
+    BatchImageAsset,
+    BatchItem,
+    BatchProgressState,
+    BatchQueueItem,
+    BatchResultItem,
+    BatchResultKind,
+    BatchResultSummaryItem,
+    BatchScanItem,
+    BatchSuccessResultItem,
+    BatchTaskInput,
+    BatchTaskOptions
+} from '../shared/models/batch'
+
+export {
+    inferResultKind,
+    isBatchArchiveResult,
+    isBatchContentResult,
+    isBatchFailedItem,
+    isBatchPdfResult,
+    isBatchResultItem,
+    isBatchSuccessItem,
+    isReviewTaskItem,
+    normalizeExportFormat,
+    normalizeStoredQueueItem,
+    normalizeStoredResultItem,
+    normalizeTaskType,
+    toResultSummaryItem
+} from '../shared/models/batch'

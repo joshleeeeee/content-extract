@@ -1,17 +1,17 @@
-import type { BatchItem } from './types'
+import type { BatchQueueItem, BatchResultItem } from './types'
 
 export interface ActiveTaskEntry {
-    item: BatchItem
+    item: BatchQueueItem
     tabId: number | null
     startedAt: number
 }
 
 export interface BatchRuntimeState {
-    BATCH_QUEUE: BatchItem[]
+    BATCH_QUEUE: BatchQueueItem[]
     isProcessing: boolean
     isPaused: boolean
-    processedResults: BatchItem[]
-    currentItem: BatchItem | null
+    processedResults: BatchResultItem[]
+    currentItem: BatchQueueItem | null
     currentTabId: number | null
     isReady: boolean
     activeTasks: Map<string, ActiveTaskEntry>

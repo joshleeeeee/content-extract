@@ -1,6 +1,10 @@
 import { onUnmounted, ref } from 'vue'
 import { useSettingsStore } from '../store/settings'
 import type { TaskType } from '../platformRegistry'
+import { sendRuntimeMessage } from '../infra/chrome/runtimeClient'
+import { queryActiveTab, sendTabMessage } from '../infra/chrome/tabClient'
+import { CONTENT_ACTIONS } from '../shared/contracts/content'
+import { RUNTIME_ACTIONS, type ExtractionProgressEvent, type GeneratePdfResponse } from '../shared/contracts/runtime'
 
 interface UseExtractorOptions {
     triggerToast: (message: string) => void;
@@ -14,11 +18,12 @@ export function useExtractor({ triggerToast, getTaskType }: UseExtractorOptions)
     const extractionProgressMessage = ref('')
     const activeRequestId = ref('')
 
-    const handleRuntimeMessage = (message: any) => {
-        if (!message || message.action !== 'EXTRACTION_PROGRESS') return
-        if (!activeRequestId.value || message.requestId !== activeRequestId.value) return
+    const handleRuntimeMessage = (message: unknown) => {
+        const payload = message as Partial<ExtractionProgressEvent> | null
+        if (!payload || payload.action !== RUNTIME_ACTIONS.EXTRACTION_PROGRESS) return
+        if (!activeRequestId.value || payload.requestId !== activeRequestId.value) return
 
-        const msg = typeof message.message === 'string' ? message.message.trim() : ''
+        const msg = typeof payload.message === 'string' ? payload.message.trim() : ''
         if (msg) {
             extractionProgressMessage.value = msg
         }
@@ -53,7 +58,7 @@ export function useExtractor({ triggerToast, getTaskType }: UseExtractorOptions)
     const sendExtractMessage = async (tabId: number, payload: any, timeoutMs: number) => {
         return await new Promise<any>((resolve, reject) => {
             const timer = window.setTimeout(() => reject(new Error(`抓取超时（${Math.round(timeoutMs / 1000)}秒）`)), timeoutMs)
-            chrome.tabs.sendMessage(tabId, payload)
+            sendTabMessage(tabId, payload)
                 .then((res) => {
                     window.clearTimeout(timer)
                     resolve(res)
@@ -110,12 +115,12 @@ export function useExtractor({ triggerToast, getTaskType }: UseExtractorOptions)
         }
 
         try {
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+            const tab = await queryActiveTab()
             if (!tab?.id) throw new Error('找不到活动标签页')
 
             if (imageMode === 'local') {
                 const response = await sendExtractMessage(tab.id, {
-                    action: 'EXTRACT_AND_DOWNLOAD_LOCAL',
+                    action: CONTENT_ACTIONS.EXTRACT_AND_DOWNLOAD_LOCAL,
                     format,
                     options: { imageMode, scrollWaitTime, imageConfig, taskType, extractRequestId: requestId, ...reviewOptions }
                 }, 15 * 60 * 1000)
@@ -138,7 +143,7 @@ export function useExtractor({ triggerToast, getTaskType }: UseExtractorOptions)
 
             const timeoutMs = 6 * 60 * 1000
             const response = await sendExtractMessage(tab.id, {
-                action: 'EXTRACT_CONTENT',
+                action: CONTENT_ACTIONS.EXTRACT_CONTENT,
                 format,
                 options: { imageMode, scrollWaitTime, imageConfig, taskType, extractRequestId: requestId, ...reviewOptions }
             }, timeoutMs)
@@ -198,11 +203,11 @@ export function useExtractor({ triggerToast, getTaskType }: UseExtractorOptions)
         }
 
         try {
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+            const tab = await queryActiveTab()
             if (!tab?.id) throw new Error('找不到活动标签页')
 
             const response = await sendExtractMessage(tab.id, {
-                action: 'EXTRACT_CONTENT',
+                action: CONTENT_ACTIONS.EXTRACT_CONTENT,
                 format: 'html',
                 options: { imageMode: 'base64', scrollWaitTime, imageConfig, taskType, extractRequestId: requestId, ...reviewOptions }
             }, 8 * 60 * 1000)
@@ -218,8 +223,8 @@ export function useExtractor({ triggerToast, getTaskType }: UseExtractorOptions)
 
                 triggerToast('PDF 正在生成中...')
 
-                const result = await chrome.runtime.sendMessage({
-                    action: 'GENERATE_PDF',
+                const result = await sendRuntimeMessage<GeneratePdfResponse>({
+                    action: RUNTIME_ACTIONS.GENERATE_PDF,
                     title: response.title || 'document'
                 })
 

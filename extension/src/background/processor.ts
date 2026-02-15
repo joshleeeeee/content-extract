@@ -28,12 +28,22 @@ function shouldForceForegroundForTask(item: BatchQueueItem) {
             || host.includes('jd.hk')
             || host.includes('taobao.com')
             || host.includes('tmall.com')
+            || host.includes('douyin.com')
+            || host.includes('xiaohongshu.com')
+            || host.includes('xhslink.com')
+            || host.includes('bilibili.com')
+            || host.includes('b23.tv')
     } catch (_) {
         const lowered = String(url).toLowerCase()
         return lowered.includes('jd.com')
             || lowered.includes('jd.hk')
             || lowered.includes('taobao.com')
             || lowered.includes('tmall.com')
+            || lowered.includes('douyin.com')
+            || lowered.includes('xiaohongshu.com')
+            || lowered.includes('xhslink.com')
+            || lowered.includes('bilibili.com')
+            || lowered.includes('b23.tv')
     }
 }
 
@@ -100,7 +110,7 @@ async function runBatchItem(item: BatchQueueItem) {
     item.progressTotal = 0
     item.progressMessage = taskType === 'review' ? '正在准备抓取评论区...' : '正在准备抓取内容...'
     if (forceForeground) {
-        item.strategyHint = '已强制前台运行（电商评论）'
+        item.strategyHint = '已强制前台运行（评论抓取）'
     }
 
     runtimeState.activeTasks.set(taskUrl, {

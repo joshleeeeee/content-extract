@@ -169,8 +169,8 @@ const reviewRecentDaysOptions = [
 
       <section v-if="showAdvancedSettings" class="space-y-3 p-3 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700">
         <div class="flex items-center justify-between">
-          <span class="text-sm font-medium">评论抓取过滤</span>
-          <span class="text-[10px] text-gray-400">仅在京东/淘宝评论抓取生效</span>
+          <span class="text-sm font-medium">电商评论过滤（京东/淘宝）</span>
+          <span class="text-[10px] text-gray-400">用于商品评论抓取</span>
         </div>
         <p class="text-[10px] text-gray-400">说明：京东这类无限滚动页面没有“页数”概念，抓取深度按滚动档位控制（1 档约等于 20 轮滚动）。</p>
 
@@ -224,6 +224,50 @@ const reviewRecentDaysOptions = [
             <span class="text-[10px] text-gray-400">过滤掉纯文字评论</span>
           </div>
           <input type="checkbox" v-model="settings.reviewWithImagesOnly" class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+        </label>
+      </section>
+
+      <section v-if="showAdvancedSettings" class="space-y-3 p-3 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-medium">社媒评论抓取（抖音/小红书/B站）</span>
+          <span class="text-[10px] text-gray-400">用于社交媒体评论抓取</span>
+        </div>
+        <p class="text-[10px] text-gray-400">建议保持详情页前台可见。抓取深度越大，耗时越久但评论覆盖更完整。</p>
+
+        <div class="grid grid-cols-2 gap-3 items-end">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-medium text-gray-500 ml-1">最大评论数</label>
+            <input
+              v-model.number="settings.socialMaxCount"
+              type="number"
+              min="0"
+              max="5000"
+              step="50"
+              class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg h-9 px-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+            <p class="text-[10px] text-gray-400 px-1">填 0 表示不限制（建议 200-1500）</p>
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-medium text-gray-500 ml-1">最大抓取轮次</label>
+            <input
+              v-model.number="settings.socialMaxRounds"
+              type="number"
+              min="10"
+              max="400"
+              step="5"
+              class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg h-9 px-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+            <p class="text-[10px] text-gray-400 px-1">建议 40-120 轮，轮次越大越深</p>
+          </div>
+        </div>
+
+        <label class="flex items-center justify-between gap-3 p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 cursor-pointer">
+          <div class="flex flex-col">
+            <span class="text-xs font-medium">抓取回复评论</span>
+            <span class="text-[10px] text-gray-400">关闭后仅保留一级评论</span>
+          </div>
+          <input type="checkbox" v-model="settings.socialIncludeReplies" class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
         </label>
       </section>
 

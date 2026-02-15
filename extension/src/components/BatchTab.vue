@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useBatchStore, type BatchScanListItem } from '../store/batch'
 import { useSettingsStore } from '../store/settings'
-import type { TaskType } from '../platformRegistry'
+import type { PlatformId, TaskType } from '../platformRegistry'
 import { queryActiveTab, sendTabMessage } from '../infra/chrome/tabClient'
 import {
   CONTENT_ACTIONS,
@@ -15,10 +15,12 @@ const props = withDefaults(defineProps<{
   taskType?: TaskType
   supportsScrollScan?: boolean
   supportsPdf?: boolean
+  activePlatformId?: PlatformId | ''
 }>(), {
   taskType: 'doc',
   supportsScrollScan: true,
-  supportsPdf: true
+  supportsPdf: true,
+  activePlatformId: ''
 })
 
 const batchStore = useBatchStore()
@@ -54,18 +56,59 @@ const availableFormats = computed(() => {
   return formats
 })
 
-const itemLabel = computed(() => props.taskType === 'review' ? '商品链接' : '文档')
-const listTargetLabel = computed(() => props.taskType === 'review' ? '商品链接' : '文档链接')
+const isSocialReviewPlatform = computed(() =>
+  props.taskType === 'review' && ['douyin', 'xiaohongshu', 'bilibili'].includes(props.activePlatformId || '')
+)
+const isCommerceReviewPlatform = computed(() =>
+  props.taskType === 'review' && ['jd', 'taobao'].includes(props.activePlatformId || '')
+)
+const reviewLinkLabel = computed(() => {
+  if (!isSocialReviewPlatform.value && !isCommerceReviewPlatform.value) return '评论链接'
+  return isSocialReviewPlatform.value ? '作品链接' : '商品链接'
+})
+const itemLabel = computed(() => props.taskType === 'review' ? reviewLinkLabel.value : '文档')
+const listTargetLabel = computed(() => props.taskType === 'review' ? reviewLinkLabel.value : '文档链接')
 const startLabel = computed(() => props.taskType === 'review' ? '开始抓取评论' : '开始抓取')
 const emptyHint = computed(() => {
   if (props.taskType === 'review') {
+    if (isSocialReviewPlatform.value) {
+      return props.supportsScrollScan
+        ? '优先粘贴作品详情链接（视频/笔记）；也可点击「扫描页面/滚动扫描」自动发现'
+        : '优先粘贴作品详情链接（视频/笔记）；也可点击「扫描页面」自动发现'
+    }
+    if (isCommerceReviewPlatform.value) {
+      return props.supportsScrollScan
+        ? '优先粘贴商品详情链接（无需列表页）；也可点击「扫描页面/滚动扫描」自动发现'
+        : '优先粘贴商品详情链接（无需列表页）；也可点击「扫描页面」自动发现'
+    }
     return props.supportsScrollScan
-      ? '优先粘贴商品详情链接（无需列表页）；也可点击「扫描页面/滚动扫描」自动发现'
-      : '优先粘贴商品详情链接（无需列表页）；也可点击「扫描页面」自动发现'
+      ? '优先粘贴评论详情链接；也可点击「扫描页面/滚动扫描」自动发现'
+      : '优先粘贴评论详情链接；也可点击「扫描页面」自动发现'
   }
   return props.supportsScrollScan
     ? '点击「扫描页面」快速扫描，或「滚动扫描」自动边滚动边发现'
     : '点击「扫描页面」快速扫描'
+})
+const manualInputPlaceholder = computed(() => {
+  if (props.taskType !== 'review') return ''
+  if (isSocialReviewPlatform.value) {
+    return '粘贴多个作品详情链接（可换行/空格），例如：\nhttps://www.douyin.com/video/1234567890\nhttps://www.xiaohongshu.com/explore/66f123456789abcdef012345\nhttps://www.bilibili.com/video/BV1xx411c7mD'
+  }
+  return '粘贴多个商品详情链接（无需先打开列表页），例如：\nhttps://item.jd.com/100287911980.html\nhttps://detail.tmall.com/item.htm?id=1234567890'
+})
+const manualPrimaryHint = computed(() => {
+  if (props.taskType !== 'review') return ''
+  if (isSocialReviewPlatform.value) {
+    return '无需先打开作者页；任务会自动逐个打开作品详情页抓取评论（并发固定为 1）。'
+  }
+  return '无需先打开列表页；任务会自动逐个打开商品详情页抓取评论（并发固定为 1）。'
+})
+const manualSecondaryHint = computed(() => {
+  if (props.taskType !== 'review') return ''
+  if (isSocialReviewPlatform.value) {
+    return '如果你当前就在作品详情页，也可以回到首页直接一键提取。'
+  }
+  return '如果你当前就在商品详情页，也可以回到首页直接一键提取。'
 })
 const shouldShowSidebarTip = computed(() => props.taskType === 'doc' && showTips.value.sidebar)
 
@@ -102,7 +145,7 @@ const toCandidateUrl = (raw: string): string | null => {
   if (!token) return null
 
   if (!/^https?:\/\//i.test(token)) {
-    if (/^(item\.jd\.com|item\.m\.jd\.com|item-yiyao\.jd\.com|item\.jd\.hk|item\.taobao\.com|detail\.tmall\.com|chaoshi\.detail\.tmall\.com)\//i.test(token)) {
+    if (/^(item\.jd\.com|item\.m\.jd\.com|item-yiyao\.jd\.com|item\.jd\.hk|item\.taobao\.com|detail\.tmall\.com|chaoshi\.detail\.tmall\.com|www\.douyin\.com|v\.douyin\.com|www\.xiaohongshu\.com|xiaohongshu\.com|xhslink\.com|www\.bilibili\.com|b23\.tv)\//i.test(token)) {
       token = `https://${token}`
     } else {
       return null
@@ -114,7 +157,68 @@ const toCandidateUrl = (raw: string): string | null => {
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       return null
     }
-    return parsed.href.split('#')[0]
+
+    if (props.taskType !== 'review') {
+      return parsed.href.split('#')[0]
+    }
+
+    const host = parsed.hostname.toLowerCase()
+    const pathname = parsed.pathname.toLowerCase()
+
+    if (host.includes('jd.com') || host.includes('jd.hk')) {
+      const id = (pathname.match(/(?:\/product\/)?(\d+)\.html/i)?.[1]
+        || parsed.searchParams.get('sku')
+        || parsed.searchParams.get('skuId')
+        || parsed.searchParams.get('id')
+        || '').trim()
+      if (!id) return null
+      const canonicalHost = host.includes('jd.hk') ? 'item.jd.hk' : 'item.jd.com'
+      return `https://${canonicalHost}/${id}.html`
+    }
+
+    if (host.includes('taobao.com') || host.includes('tmall.com')) {
+      if (!/\/item\.htm/i.test(pathname)) return null
+      const id = (parsed.searchParams.get('id') || '').trim()
+      if (!/^\d+$/.test(id)) return null
+      parsed.hash = ''
+      return parsed.toString()
+    }
+
+    if (host.includes('douyin.com')) {
+      const videoId = pathname.match(/\/video\/(\d+)/i)?.[1] || (parsed.searchParams.get('modal_id') || '').trim()
+      if (videoId && /^\d+$/.test(videoId)) {
+        return `https://www.douyin.com/video/${videoId}`
+      }
+      if (host === 'v.douyin.com') {
+        parsed.hash = ''
+        return parsed.toString()
+      }
+      return null
+    }
+
+    if (host.includes('xiaohongshu.com')) {
+      if (!/\/(explore|discovery\/item)\/[a-z0-9_-]+(?:\/)?$/i.test(pathname)) return null
+      parsed.hash = ''
+      return parsed.toString()
+    }
+
+    if (host === 'xhslink.com') {
+      parsed.hash = ''
+      return parsed.toString()
+    }
+
+    if (host.includes('bilibili.com')) {
+      const bvid = pathname.match(/\/video\/(BV[a-z0-9]+|av\d+)/i)?.[1]
+      if (!bvid) return null
+      return `https://www.bilibili.com/video/${bvid}`
+    }
+
+    if (host === 'b23.tv') {
+      parsed.hash = ''
+      return parsed.toString()
+    }
+
+    return null
   } catch (_) {
     return null
   }
@@ -136,16 +240,32 @@ const inferManualTitle = (url: string) => {
       const id = (parsed.searchParams.get('id') || '').trim()
       return id ? `淘宝商品_${id}` : '淘宝商品'
     }
+
+    if (host.includes('douyin.com')) {
+      const videoId = parsed.pathname.match(/\/video\/(\d+)/i)?.[1] || (parsed.searchParams.get('modal_id') || '').trim()
+      return videoId ? `抖音作品_${videoId}` : '抖音作品'
+    }
+
+    if (host.includes('xiaohongshu.com') || host === 'xhslink.com') {
+      const noteId = parsed.pathname.match(/\/(explore|discovery\/item)\/([a-z0-9_-]+)(?:\/)?/i)?.[2] || ''
+      return noteId ? `小红书笔记_${noteId}` : '小红书笔记'
+    }
+
+    if (host.includes('bilibili.com') || host === 'b23.tv') {
+      const bvid = parsed.pathname.match(/\/video\/(BV[a-z0-9]+|av\d+)/i)?.[1] || ''
+      return bvid ? `B站视频_${bvid}` : 'B站视频'
+    }
+
     return parsed.hostname
   } catch (_) {
-    return '商品链接'
+    return props.taskType === 'review' ? reviewLinkLabel.value : '文档链接'
   }
 }
 
 const importManualLinks = (autoStart = false) => {
   const source = manualLinksInput.value.trim()
   if (!source) {
-    manualImportError.value = '请先粘贴商品链接'
+    manualImportError.value = `请先粘贴${reviewLinkLabel.value}`
     manualImportMessage.value = ''
     return
   }
@@ -186,7 +306,7 @@ const importManualLinks = (autoStart = false) => {
 
   manualImportMessage.value = `导入 ${addedCount} 条，已存在 ${existedCount} 条${duplicateInInput > 0 ? `，输入重复 ${duplicateInInput} 条` : ''}${invalidCount > 0 ? `，无效 ${invalidCount} 条` : ''}`
   if (addedCount === 0 && invalidCount > 0) {
-    manualImportError.value = '未识别到有效商品链接，请检查粘贴内容'
+    manualImportError.value = `未识别到有效${reviewLinkLabel.value}，请检查粘贴内容`
   }
 
   if (autoStart && addedCount > 0 && !batchStore.isProcessing) {
@@ -344,6 +464,9 @@ const handleStartBatch = () => {
     reviewMaxCount: settingsStore.reviewMaxCount,
     reviewRecentDays: settingsStore.reviewRecentDays,
     reviewMaxPages: settingsStore.reviewMaxPages,
+    socialIncludeReplies: settingsStore.socialIncludeReplies,
+    socialMaxCount: settingsStore.socialMaxCount,
+    socialMaxRounds: settingsStore.socialMaxRounds,
     imageConfig: {
       enabled: resolvedImageMode === 'minio',
       ...settingsStore.ossConfig
@@ -356,14 +479,14 @@ const handleStartBatch = () => {
   <div class="flex flex-col min-h-full">
     <div v-if="props.taskType === 'review'" class="mb-4 p-3 rounded-2xl border border-slate-200/70 dark:border-slate-700/70 bg-white/70 dark:bg-slate-900/40 space-y-2.5">
       <div class="flex items-center justify-between">
-        <div class="text-[12px] font-black tracking-wide text-slate-500">手动导入商品链接</div>
+        <div class="text-[12px] font-black tracking-wide text-slate-500">手动导入{{ reviewLinkLabel }}</div>
         <span class="text-[11px] text-slate-400">支持换行/空格分隔</span>
       </div>
 
       <textarea
         v-model="manualLinksInput"
         rows="4"
-        placeholder="粘贴多个商品详情链接（无需先打开列表页），例如：&#10;https://item.jd.com/100287911980.html&#10;https://detail.tmall.com/item.htm?id=1234567890"
+        :placeholder="manualInputPlaceholder"
         class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs leading-relaxed text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
       ></textarea>
 
@@ -385,8 +508,8 @@ const handleStartBatch = () => {
         class="h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors"
       >清空输入</button>
 
-      <div class="text-[12px] leading-relaxed text-slate-500">无需先打开列表页；任务会自动逐个打开商品详情页抓取评论（并发固定为 1）。</div>
-      <div class="text-[12px] leading-relaxed text-slate-500">如果你当前就在商品详情页，也可以回到首页直接一键提取。</div>
+      <div class="text-[12px] leading-relaxed text-slate-500">{{ manualPrimaryHint }}</div>
+      <div class="text-[12px] leading-relaxed text-slate-500">{{ manualSecondaryHint }}</div>
       <div v-if="manualImportMessage" class="text-[12px] text-emerald-600 dark:text-emerald-400">{{ manualImportMessage }}</div>
       <div v-if="manualImportError" class="text-[12px] text-red-500">{{ manualImportError }}</div>
     </div>

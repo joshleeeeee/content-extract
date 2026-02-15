@@ -18,6 +18,9 @@ export interface BatchTaskOptions extends Record<string, unknown> {
     reviewMaxCount?: number
     reviewRecentDays?: number
     reviewMaxPages?: number
+    socialIncludeReplies?: boolean
+    socialMaxCount?: number
+    socialMaxRounds?: number
     imageConfig?: Record<string, unknown>
 }
 

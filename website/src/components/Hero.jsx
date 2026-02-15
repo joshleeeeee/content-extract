@@ -50,7 +50,7 @@ const Hero = ({ lang }) => {
                     className="flex flex-col sm:flex-row items-center justify-center gap-4"
                 >
                     <a
-                        href="https://github.com/joshleeeeee/online-doc-exporter/releases"
+                        href="https://github.com/joshleeeeee/content-extract/releases"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="group relative px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full font-semibold transition-all shadow-lg hover:shadow-indigo-500/25 flex items-center gap-2"
@@ -78,7 +78,7 @@ const Hero = ({ lang }) => {
                     <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl blur opacity-20 animate-pulse"></div>
                     <div className="relative rounded-2xl overflow-hidden border border-slate-700 shadow-2xl bg-slate-900/50">
                         <img
-                            src="/online-doc-exporter/images/preview-single.png"
+                            src="/content-extract/images/preview-single.png"
                             alt="Extension Preview"
                             className="w-full h-auto block object-top hover:scale-105 transition-transform duration-700"
                         />

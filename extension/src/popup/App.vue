@@ -11,7 +11,7 @@ import { useExtractor } from '../composables/useExtractor'
 import { useBatchStatusPolling } from '../composables/useBatchStatusPolling'
 import type { ExportFormat, TaskType } from '../platformRegistry'
 
-const version = ref('1.4.0')
+const version = ref('1.7.0')
 const activeTab = ref('main')
 const settings = useSettingsStore()
 const batchStore = useBatchStore()
@@ -313,11 +313,11 @@ onUnmounted(() => {
           </svg>
         </div>
         <h1 class="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent italic">
-          Online Doc Exporter
+          ContentExtract
         </h1>
       </div>
       <div class="flex items-center gap-4">
-        <a href="https://github.com/joshleeeeee/online-doc-exporter#sponsor" target="_blank" class="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-3 py-2 rounded-full font-bold hover:bg-amber-200 transition-all hover:scale-105 active:scale-95">
+        <a href="https://github.com/joshleeeeee/content-extract#sponsor" target="_blank" class="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-3 py-2 rounded-full font-bold hover:bg-amber-200 transition-all hover:scale-105 active:scale-95">
           ☕ 打赏
         </a>
         <div class="flex flex-col items-end">

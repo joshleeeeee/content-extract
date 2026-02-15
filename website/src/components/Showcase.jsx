@@ -30,7 +30,7 @@ const Showcase = ({ lang }) => {
                     >
                         <div className="absolute -inset-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition-opacity"></div>
                         <img
-                            src="/online-doc-exporter/images/preview-batch.png"
+                            src="/content-extract/images/preview-batch.png"
                             alt="Batch Export"
                             className="relative rounded-xl border border-slate-700 shadow-2xl w-full rotate-1 group-hover:rotate-0 transition-transform duration-500"
                         />
@@ -92,7 +92,7 @@ const Showcase = ({ lang }) => {
                     >
                         <div className="absolute -inset-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition-opacity"></div>
                         <img
-                            src="/online-doc-exporter/images/preview-download.png"
+                            src="/content-extract/images/preview-download.png"
                             alt="Download Center"
                             className="relative rounded-xl border border-slate-700 shadow-2xl w-full -rotate-1 group-hover:rotate-0 transition-transform duration-500"
                         />
@@ -108,7 +108,7 @@ const Showcase = ({ lang }) => {
                     >
                         <div className="absolute -inset-2 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition-opacity"></div>
                         <img
-                            src="/online-doc-exporter/images/preview-settings.png"
+                            src="/content-extract/images/preview-settings.png"
                             alt="Advanced Settings"
                             className="relative rounded-xl border border-slate-700 shadow-2xl w-full rotate-1 group-hover:rotate-0 transition-transform duration-500"
                         />

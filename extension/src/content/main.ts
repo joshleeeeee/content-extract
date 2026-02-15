@@ -8,11 +8,11 @@ class App {
     static init() {
         // Check if context is still valid
         if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
-            console.warn('OnlineDocExporter: Extension context invalidated. Please refresh the page.');
+            console.warn('ContentExtract: Extension context invalidated. Please refresh the page.');
             return;
         }
 
-        console.log('OnlineDocExporter: Content Script Initialized');
+        console.log('ContentExtract: Content Script Initialized');
 
         if (chrome.runtime.onMessage) {
             chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {

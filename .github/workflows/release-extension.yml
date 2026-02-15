@@ -31,13 +31,13 @@ jobs:
       - name: Zip extension
         run: |
           cd extension/dist
-          zip -r ../../online-doc-exporter-${{ github.ref_name }}.zip .
+          zip -r ../../content-extract-${{ github.ref_name }}.zip .
           cd ../..
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: online-doc-exporter-${{ github.ref_name }}.zip
+          files: content-extract-${{ github.ref_name }}.zip
           generate_release_notes: true
           draft: false
           prerelease: false

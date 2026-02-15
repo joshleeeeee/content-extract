@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useBatchStore, type BatchItem } from '../store/batch'
+import { useBatchStore, type BatchScanListItem } from '../store/batch'
 import { useSettingsStore } from '../store/settings'
 import type { TaskType } from '../platformRegistry'
+import { queryActiveTab, sendTabMessage } from '../infra/chrome/tabClient'
+import {
+  CONTENT_ACTIONS,
+  CONTENT_PORTS,
+  type ScanLinksResponse,
+  type ScrollScanPortMessage
+} from '../shared/contracts/content'
 
 const props = withDefaults(defineProps<{
   taskType?: TaskType
@@ -207,13 +214,13 @@ const addLinksIncrementally = (newLinks: { title: string; url: string }[]) => {
   const existingUrls = new Set(batchStore.scannedLinks.map(l => l.url))
   const downloadedUrls = new Set(
     batchStore.processedResults
-      .filter(r => (r.taskType || 'doc') === props.taskType)
+      .filter(r => r.taskType === props.taskType)
       .map(r => r.url)
   )
 
   newLinks.forEach((link) => {
     if (!existingUrls.has(link.url)) {
-      const item: BatchItem = {
+      const item: BatchScanListItem = {
         ...link,
         taskType: props.taskType
       }
@@ -233,10 +240,10 @@ const addLinksIncrementally = (newLinks: { title: string; url: string }[]) => {
 const scanLinks = async () => {
   isScanning.value = true
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    const tab = await queryActiveTab()
     if (!tab?.id) return
 
-    const response = await chrome.tabs.sendMessage(tab.id, { action: 'SCAN_LINKS' })
+    const response = await sendTabMessage<ScanLinksResponse>(tab.id, { action: CONTENT_ACTIONS.SCAN_LINKS })
     if (response && response.success) {
       addLinksIncrementally(response.links || [])
     }
@@ -253,9 +260,9 @@ const scrollScanLinks = async () => {
   if (isScrollScanning.value) {
     // Stop the current scroll scan
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      const tab = await queryActiveTab()
       if (tab?.id) {
-        await chrome.tabs.sendMessage(tab.id, { action: 'STOP_SCROLL_SCAN' })
+        await sendTabMessage(tab.id, { action: CONTENT_ACTIONS.STOP_SCROLL_SCAN })
       }
     } catch (e) {
       console.error('Stop scroll scan error:', e)
@@ -266,13 +273,13 @@ const scrollScanLinks = async () => {
 
   isScrollScanning.value = true
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    const tab = await queryActiveTab()
     if (!tab?.id) return
 
     // Open a long-lived port connection to the content script
-    const port = chrome.tabs.connect(tab.id, { name: 'scroll-scan' })
+    const port = chrome.tabs.connect(tab.id, { name: CONTENT_PORTS.SCROLL_SCAN })
 
-    port.onMessage.addListener((msg: any) => {
+    port.onMessage.addListener((msg: ScrollScanPortMessage) => {
       if (msg.type === 'partial') {
         addLinksIncrementally(msg.links || [])
       } else if (msg.type === 'done') {
@@ -309,14 +316,14 @@ const isDownloaded = (url: string) => {
   return batchStore.processedResults.some(r =>
     r.url === url &&
     r.status === 'success' &&
-    (r.taskType || 'doc') === props.taskType
+    r.taskType === props.taskType
   )
 }
 
 const handleStartBatch = () => {
   const items = Array.from(selectedIndexes.value)
     .map(idx => batchStore.scannedLinks[idx])
-    .filter((item): item is BatchItem => !!item)
+    .filter((item): item is BatchScanListItem => !!item)
     .map(item => ({
       ...item,
       taskType: props.taskType

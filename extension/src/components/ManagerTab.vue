@@ -1,20 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useBatchStore, type BatchItem } from '../store/batch'
-import JSZip from 'jszip'
+import { sendRuntimeMessage } from '../infra/chrome/runtimeClient'
+import { RUNTIME_ACTIONS } from '../shared/contracts/runtime'
+import { formatSize, useBatchExport } from '../application/usecases/export/useBatchExport'
 
 const batchStore = useBatchStore()
 const selectedUrls = ref<Set<string>>(new Set())
 
-const VOLUME_SIZE_MB = 300
-const VOLUME_SIZE_BYTES = VOLUME_SIZE_MB * 1024 * 1024
-const MEMORY_WATERLINE_MB = 300
-const MEMORY_WATERLINE_BYTES = MEMORY_WATERLINE_MB * 1024 * 1024
-const ZIP_HEAP_SOFT_LIMIT_MB = 320
-const ZIP_HEAP_HARD_LIMIT_MB = 420
+const {
+  volumeSizeMb,
+  isDownloading,
+  downloadProgress,
+  totalSelectedSize,
+  volumeCount,
+  fetchSingleResult,
+  handleDownloadZip,
+  handleSingleDownload
+} = useBatchExport({ batchStore, selectedUrls })
 
-const isDownloading = ref(false)
-const downloadProgress = ref('')
 const latestPreviewLines = ref<string[]>([])
 const latestPreviewMeta = ref('')
 const latestPreviewLoading = ref(false)
@@ -23,94 +27,6 @@ const showOverview = ref(localStorage.getItem('ode-manager-overview') === 'true'
 watch(showOverview, (value) => {
   localStorage.setItem('ode-manager-overview', String(value))
 })
-
-const getHeapUsageMb = () => {
-  const mem = (performance as any)?.memory
-  if (!mem?.usedJSHeapSize) return null
-  return mem.usedJSHeapSize / (1024 * 1024)
-}
-
-const formatSize = (bytes: number = 0) => {
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
-
-const getExportFormatMeta = (format?: string) => {
-  if (format === 'pdf') return { ext: '.pdf', mime: 'application/pdf' }
-  if (format === 'html') return { ext: '.html', mime: 'text/html;charset=utf-8' }
-  if (format === 'csv') return { ext: '.csv', mime: 'text/csv;charset=utf-8' }
-  if (format === 'json') return { ext: '.json', mime: 'application/json;charset=utf-8' }
-  return { ext: '.md', mime: 'text/markdown;charset=utf-8' }
-}
-
-const encodeExportContent = (format: string | undefined, content: string) => {
-  if (format === 'csv') {
-    return content.startsWith('\uFEFF') ? content : `\uFEFF${content}`
-  }
-  return content
-}
-
-const sanitizeDownloadName = (name?: string) => {
-  const raw = (name || 'document')
-  let safe = raw
-    .replace(/[\\/]/g, '_')
-    .replace(/[<>:"|?*#%&{}$!@`+=~^]/g, '')
-    .replace(/[\x00-\x1f\x7f]/g, '')
-    .replace(/^\.+/, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-  if (!safe) safe = 'document'
-  if (safe.length > 200) safe = safe.slice(0, 200)
-  return safe
-}
-
-const normalizeExportTitle = (title?: string) => {
-  const raw = (title || '').trim()
-  if (!raw) return ''
-  return raw
-    .replace(/\s*[-|｜]\s*(feishu|lark)\s*docs?$/i, '')
-    .replace(/\s*[-|｜]\s*飞书(云)?文档$/i, '')
-    .replace(/\s*[-|｜]\s*文档$/i, '')
-    .trim()
-}
-
-const totalSelectedSize = computed(() => {
-  let total = 0
-  batchStore.processedResults.forEach(r => {
-    if (selectedUrls.value.has(r.url)) {
-      total += r.size || 0
-    }
-  })
-  return total
-})
-
-// Group selected items into volumes by cumulative size
-const volumes = computed(() => {
-  const items = batchStore.processedResults.filter(r =>
-    selectedUrls.value.has(r.url) && r.status === 'success'
-  )
-  const groups: (typeof items)[] = []
-  let currentGroup: typeof items = []
-  let currentSize = 0
-
-  for (const item of items) {
-    const itemSize = item.size || 0
-    const maxChunkBytes = Math.min(VOLUME_SIZE_BYTES, MEMORY_WATERLINE_BYTES)
-    if (currentGroup.length > 0 && currentSize + itemSize > maxChunkBytes) {
-      groups.push(currentGroup)
-      currentGroup = [item]
-      currentSize = itemSize
-    } else {
-      currentGroup.push(item)
-      currentSize += itemSize
-    }
-  }
-  if (currentGroup.length > 0) groups.push(currentGroup)
-  return groups
-})
-
-const volumeCount = computed(() => volumes.value.length)
 
 const latestSuccessItem = computed<BatchItem | null>(() => {
   const sorted = [...batchStore.processedResults]
@@ -130,261 +46,6 @@ const toggleSelectAll = (e: Event) => {
   }
 }
 
-const fetchSingleResult = (url: string): Promise<any> => {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage({
-      action: 'GET_FULL_RESULTS',
-      urls: [url]
-    }, (response) => {
-      resolve(response?.success && response.data?.length > 0 ? response.data[0] : null)
-    })
-  })
-}
-
-const fetchArchiveBase64ByKey = (key: string): Promise<string | null> => {
-  return new Promise((resolve) => {
-    chrome.storage.local.get([key], (res) => {
-      resolve((res && typeof res[key] === 'string') ? res[key] : null)
-    })
-  })
-}
-
-const normalizeBase64Payload = (value: string) => {
-  const normalized = String(value || '')
-    .trim()
-    .replace(/^data:[^;]+;base64,/i, '')
-    .replace(/-/g, '+')
-    .replace(/_/g, '/')
-    .replace(/\s+/g, '')
-
-  if (!normalized) return ''
-  const remainder = normalized.length % 4
-  if (remainder === 0) return normalized
-  return normalized + '='.repeat(4 - remainder)
-}
-
-const base64ToBytes = (value: string) => {
-  const normalized = normalizeBase64Payload(value)
-  if (!normalized) {
-    throw new Error('空的 Base64 数据')
-  }
-
-  const binary = atob(normalized)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i)
-  }
-  return bytes
-}
-
-const blobToDataUrl = (blob: Blob): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(reader.error || new Error('Blob 转 DataURL 失败'))
-    reader.readAsDataURL(blob)
-  })
-}
-
-const downloadByUrl = (url: string, filename: string): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    chrome.downloads.download({
-      url,
-      filename,
-      conflictAction: 'uniquify'
-    }, (downloadId) => {
-      const err = chrome.runtime.lastError
-      if (err || !downloadId) {
-        reject(new Error(err?.message || '下载失败'))
-        return
-      }
-      resolve()
-    })
-  })
-}
-
-const triggerDownloadByAnchor = (url: string, filename: string) => {
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.style.display = 'none'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-}
-
-const triggerDownload = async (blob: Blob, filename: string) => {
-  // Small files use data URL via downloads API (popup lifecycle safe)
-  if (blob.size <= 8 * 1024 * 1024) {
-    try {
-      const dataUrl = await blobToDataUrl(blob)
-      await downloadByUrl(dataUrl, filename)
-      return
-    } catch (e) {
-      console.warn('[Download] DataURL fallback failed, switch to blob URL', e)
-    }
-  }
-
-  const dlUrl = URL.createObjectURL(blob)
-  try {
-    await downloadByUrl(dlUrl, filename)
-  } catch (e) {
-    console.warn('[Download] downloads API failed, fallback anchor click', e)
-    triggerDownloadByAnchor(dlUrl, filename)
-  } finally {
-    window.setTimeout(() => URL.revokeObjectURL(dlUrl), 120_000)
-  }
-}
-
-const recoverTextFromArchive = async (item: any): Promise<string> => {
-  const archiveBase64 = item.archiveBase64 || (item.archiveStorageKey ? await fetchArchiveBase64ByKey(item.archiveStorageKey) : null)
-  if (!archiveBase64) return ''
-
-  try {
-    const archiveZip = await JSZip.loadAsync(base64ToBytes(archiveBase64))
-    const files = Object.values(archiveZip.files).filter(file => !file.dir)
-    if (files.length === 0) return ''
-
-    const preferredExt = item.format === 'json' ? '.json' : (item.format === 'csv' ? '.csv' : '')
-    const preferredFile = preferredExt
-      ? files.find(file => file.name.toLowerCase().endsWith(preferredExt))
-      : null
-    const targetFile = preferredFile || files[0]
-    if (!targetFile) return ''
-
-    return await targetFile.async('string')
-  } catch (e) {
-    console.warn('[Download] Recover text from archive failed', e)
-    return ''
-  }
-}
-
-const downloadReviewItemsAsFiles = async (items: BatchItem[]) => {
-  for (let i = 0; i < items.length; i++) {
-    const source = items[i]
-    downloadProgress.value = `正在导出评论文件 ${i + 1}/${items.length}...`
-
-    const item = await fetchSingleResult(source.url)
-    if (!item) continue
-
-    const safeTitle = sanitizeDownloadName(normalizeExportTitle(item.title) || item.title || 'document')
-    const formatMeta = getExportFormatMeta(item.format)
-
-    let content = typeof item.content === 'string' ? item.content : ''
-    if (!content && (item.archiveBase64 || item.archiveStorageKey)) {
-      content = await recoverTextFromArchive(item)
-    }
-
-    const blob = new Blob([encodeExportContent(item.format, content || '')], { type: formatMeta.mime })
-    await triggerDownload(blob, `${safeTitle}${formatMeta.ext}`)
-    await new Promise(r => setTimeout(r, 180))
-  }
-}
-
-const handleDownloadZip = async () => {
-  const selectedSuccessItems = batchStore.processedResults.filter(r => selectedUrls.value.has(r.url) && r.status === 'success')
-  const pureReviewSelection = selectedSuccessItems.length > 0 && selectedSuccessItems.every(item => {
-    const taskType = item.taskType || 'doc'
-    return taskType === 'review' && (item.format === 'csv' || item.format === 'json')
-  })
-
-  if (pureReviewSelection) {
-    isDownloading.value = true
-    try {
-      await downloadReviewItemsAsFiles(selectedSuccessItems)
-    } finally {
-      isDownloading.value = false
-      downloadProgress.value = ''
-    }
-    return
-  }
-
-  const vols = volumes.value.map(v => [...v])
-  if (vols.length === 0) return
-
-  isDownloading.value = true
-  const timestamp = new Date().getTime()
-
-  try {
-    for (let vi = 0; vi < vols.length; vi++) {
-      const vol = vols[vi]
-      const zip = new JSZip()
-      const imagesFolder = zip.folder("images")
-      let shouldSplitEarly = false
-
-      // Fetch items one-by-one to avoid Chrome's 64MiB message limit
-      for (let fi = 0; fi < vol.length; fi++) {
-        const totalIndex = vols.slice(0, vi).reduce((s, v) => s + v.length, 0) + fi + 1
-        const totalItems = vols.reduce((s, v) => s + v.length, 0)
-        downloadProgress.value = vols.length > 1
-          ? `卷${vi + 1}/${vols.length} · 第 ${totalIndex}/${totalItems} 个`
-          : `第 ${fi + 1}/${vol.length} 个...`
-
-        const item = await fetchSingleResult(vol[fi].url)
-        if (!item) continue
-
-        const safeTitle = sanitizeDownloadName(normalizeExportTitle(item.title) || item.title || 'document')
-        const isReviewTask = (item.taskType || 'doc') === 'review'
-        const hasTextContent = typeof item.content === 'string' && item.content.length > 0
-        const shouldUseArchive = !isReviewTask && !!(item.archiveBase64 || item.archiveStorageKey)
-
-        if (item.format === 'pdf') {
-          if (item.content) {
-            zip.file(`${safeTitle}.pdf`, base64ToBytes(item.content))
-          }
-        } else if (shouldUseArchive) {
-          const archiveBase64 = item.archiveBase64 || (item.archiveStorageKey ? await fetchArchiveBase64ByKey(item.archiveStorageKey) : null)
-          if (archiveBase64) {
-            zip.file(`${safeTitle}.zip`, base64ToBytes(archiveBase64))
-          }
-        } else {
-          const formatMeta = getExportFormatMeta(item.format)
-          zip.file(`${safeTitle}${formatMeta.ext}`, encodeExportContent(item.format, hasTextContent ? item.content : ''))
-          if ((item.format === 'markdown' || item.format === 'html') && item.images && Array.isArray(item.images)) {
-            item.images.forEach((img: any) => {
-              if (img.base64 && img.filename) {
-                const base64Data = img.base64.includes(',') ? img.base64.split(',')[1] : img.base64
-                imagesFolder?.file(img.filename, base64Data, { base64: true })
-              }
-            })
-          }
-        }
-
-        const heapMb = getHeapUsageMb()
-        if (heapMb && heapMb > ZIP_HEAP_SOFT_LIMIT_MB) {
-          await new Promise(r => setTimeout(r, 250))
-        }
-        if (heapMb && heapMb > ZIP_HEAP_HARD_LIMIT_MB && fi < vol.length - 1) {
-          shouldSplitEarly = true
-          const remaining = vol.slice(fi + 1)
-          if (remaining.length > 0) {
-            vols.splice(vi + 1, 0, remaining)
-          }
-          break
-        }
-      }
-
-      downloadProgress.value = vols.length > 1
-        ? `正在打包卷 ${vi + 1}...`
-        : '正在打包...'
-
-      const blob = await zip.generateAsync({ type: "blob" })
-      const filename = vols.length > 1
-        ? `Batch_Export_${timestamp}_Vol${vi + 1}.zip`
-        : `Batch_Export_${timestamp}.zip`
-      await triggerDownload(blob, filename)
-
-      // Delay between volumes to avoid browser blocking multiple downloads
-      if (vi < vols.length - 1) {
-        await new Promise(r => setTimeout(r, shouldSplitEarly ? 2000 : 1500))
-      }
-    }
-  } finally {
-    isDownloading.value = false
-    downloadProgress.value = ''
-  }
-}
-
 const handleClear = () => {
   if (confirm('确定要清空所有已下载的历史记录吗？正在进行的任务也会停止。')) {
     batchStore.clearResults()
@@ -393,10 +54,14 @@ const handleClear = () => {
 }
 
 const deleteItem = (url: string) => {
-  chrome.runtime.sendMessage({ action: 'DELETE_BATCH_ITEM', url }, () => {
-    batchStore.updateStatus()
-    selectedUrls.value.delete(url)
-  })
+  void sendRuntimeMessage({ action: RUNTIME_ACTIONS.DELETE_BATCH_ITEM, url })
+    .then(() => {
+      batchStore.updateStatus()
+      selectedUrls.value.delete(url)
+    })
+    .catch(() => {
+      // ignore runtime wake-up failures
+    })
 }
 
 const retryItem = (url: string) => {
@@ -437,8 +102,8 @@ const currentItemEtaText = computed(() => {
   if (!current || current.taskType !== 'review') return ''
 
   const round = Number(current.progressRound || 0)
-  const maxRounds = Number((current as any).progressMaxRounds || 0)
-  const startedAt = Number((current as any).progressStartedAt || 0)
+  const maxRounds = Number(current.progressMaxRounds || 0)
+  const startedAt = Number(current.progressStartedAt || 0)
   if (round <= 0 || maxRounds <= 0 || startedAt <= 0 || round >= maxRounds) return ''
 
   const elapsedMs = Date.now() - startedAt
@@ -578,56 +243,6 @@ const getTaskTypeTag = (item: BatchItem) => {
         ? { label: '评', className: 'text-[9px] font-black text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded uppercase border border-amber-100 dark:border-amber-800 shrink-0' }
         : { label: '文', className: 'text-[9px] font-black text-slate-500 bg-slate-50 dark:bg-slate-700/60 px-1.5 py-0.5 rounded uppercase border border-slate-200 dark:border-slate-700 shrink-0' }
 }
-
-const handleSingleDownload = async (item: BatchItem) => {
-    chrome.runtime.sendMessage({ 
-        action: 'GET_FULL_RESULTS', 
-        urls: [item.url]
-    }, async (response) => {
-        if (response && response.success && response.data.length > 0) {
-            const data = response.data[0]
-            const safeTitle = sanitizeDownloadName(normalizeExportTitle(data.title) || data.title || 'document')
-            const isReviewTask = (data.taskType || 'doc') === 'review'
-            const hasTextContent = typeof data.content === 'string' && data.content.length > 0
-            const shouldUseArchive = !isReviewTask && !!(data.archiveBase64 || data.archiveStorageKey)
-            
-            if (data.format === 'pdf') {
-                // PDF: decode base64 and download as .pdf
-                if (data.content) {
-                    const blob = new Blob([base64ToBytes(data.content)], { type: 'application/pdf' })
-                    await triggerDownload(blob, `${safeTitle}.pdf`)
-                }
-            } else if (shouldUseArchive) {
-                const archiveBase64 = data.archiveBase64 || (data.archiveStorageKey ? await fetchArchiveBase64ByKey(data.archiveStorageKey) : null)
-                if (!archiveBase64) return
-                const blob = new Blob([base64ToBytes(archiveBase64)], { type: 'application/zip' })
-                await triggerDownload(blob, `${safeTitle}.zip`)
-            } else {
-                const formatMeta = getExportFormatMeta(data.format)
-                const hasImages = (data.format === 'markdown' || data.format === 'html') && data.images && data.images.length > 0
-                
-                if (hasImages) {
-                    const zip = new JSZip()
-                    zip.file(`${safeTitle}${formatMeta.ext}`, encodeExportContent(data.format, data.content || ''))
-                    
-                    const imagesFolder = zip.folder("images")
-                    data.images.forEach((img: any) => {
-                        if (img.base64 && img.filename) {
-                            const base64Data = img.base64.includes(',') ? img.base64.split(',')[1] : img.base64;
-                            imagesFolder?.file(img.filename, base64Data, { base64: true })
-                        }
-                    })
-
-                    const blob = await zip.generateAsync({ type: "blob" })
-                    await triggerDownload(blob, `${safeTitle}.zip`)
-                } else {
-                    const blob = new Blob([encodeExportContent(data.format, hasTextContent ? data.content : '')], { type: formatMeta.mime })
-                    await triggerDownload(blob, `${safeTitle}${formatMeta.ext}`)
-                }
-            }
-        }
-    })
-}
 </script>
 
 <template>
@@ -721,7 +336,7 @@ const handleSingleDownload = async (item: BatchItem) => {
       </label>
       <span class="text-[10px] text-gray-400 flex items-center gap-1.5">
         <span v-if="batchStore.isUpdatingStatus && batchStore.hasLoadedStatus" class="inline-block w-2 h-2 border border-gray-300 border-t-blue-500 rounded-full animate-spin"></span>
-        <span>每卷 ≤ {{ Math.min(VOLUME_SIZE_MB, MEMORY_WATERLINE_MB) }}MB<template v-if="volumeCount > 1"> · 共 {{ volumeCount }} 卷</template></span>
+        <span>每卷 ≤ {{ volumeSizeMb }}MB<template v-if="volumeCount > 1"> · 共 {{ volumeCount }} 卷</template></span>
       </span>
     </div>
 

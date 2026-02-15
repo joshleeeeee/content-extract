@@ -1,35 +1,28 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { TaskType } from '../platformRegistry'
+import type { ExportFormat } from '../platformRegistry'
+import { sendRuntimeMessage } from '../infra/chrome/runtimeClient'
+import type {
+    BatchQueueItem,
+    BatchResultSummaryItem,
+    BatchScanItem,
+    BatchTaskOptions
+} from '../shared/models/batch'
+import {
+    RUNTIME_ACTIONS,
+    type GetBatchStatusResponse,
+    type RuntimeBatchQueueItemInput
+} from '../shared/contracts/runtime'
 
-export interface BatchItem {
-    url: string
-    title: string
-    taskType?: TaskType
-    format?: string
-    options?: any
-    status?: 'pending' | 'processing' | 'success' | 'failed'
-    size?: number
-    timestamp?: number
-    error?: string
-    archiveBase64?: string
-    archiveName?: string
-    archiveStorageKey?: string
-    progressMessage?: string
-    progressTotal?: number
-    progressRound?: number
-    progressAdded?: number
-    progressMaxRounds?: number
-    progressStartedAt?: number
-    strategyHint?: string
-}
+export type BatchItem = BatchResultSummaryItem
+export type BatchScanListItem = BatchScanItem
 
 export const useBatchStore = defineStore('batch', () => {
-    const scannedLinks = ref<BatchItem[]>([])
-    const processedResults = ref<BatchItem[]>([])
+    const scannedLinks = ref<BatchScanListItem[]>([])
+    const processedResults = ref<BatchResultSummaryItem[]>([])
     const isProcessing = ref(false)
     const isPaused = ref(false)
-    const currentItem = ref<BatchItem | null>(null)
+    const currentItem = ref<BatchQueueItem | null>(null)
     const queueLength = ref(0)
     const progressPercent = ref(0)
     const activeCount = ref(0)
@@ -41,41 +34,42 @@ export const useBatchStore = defineStore('batch', () => {
     const isRetryingAll = ref(false)
     const retryingUrls = ref<Set<string>>(new Set())
 
-    const sendMessage = <T = any>(payload: any) => {
-        return new Promise<T>((resolve) => {
-            chrome.runtime.sendMessage(payload, (res) => resolve(res as T))
-        })
-    }
-
     const updateStatus = async () => {
         isUpdatingStatus.value = true
-        return new Promise<void>((resolve) => {
-            chrome.runtime.sendMessage({ action: 'GET_BATCH_STATUS' }, (res) => {
-                if (res) {
-                    isProcessing.value = res.isProcessing
-                    isPaused.value = res.isPaused
-                    processedResults.value = res.results || []
-                    currentItem.value = res.currentItem || null
-                    queueLength.value = res.queueLength || 0
-                    activeCount.value = res.activeCount || 0
-                    effectiveConcurrency.value = res.effectiveConcurrency || 1
+        try {
+            const res = await sendRuntimeMessage<GetBatchStatusResponse>({ action: RUNTIME_ACTIONS.GET_BATCH_STATUS })
+            if (res) {
+                isProcessing.value = res.isProcessing
+                isPaused.value = res.isPaused
+                processedResults.value = (res.results || []) as BatchResultSummaryItem[]
+                currentItem.value = (res.currentItem || null) as BatchQueueItem | null
+                queueLength.value = res.queueLength || 0
+                activeCount.value = res.activeCount || 0
+                effectiveConcurrency.value = res.effectiveConcurrency || 1
 
-                    const finishedCount = processedResults.value.length
-                    const total = finishedCount + activeCount.value + queueLength.value
-
-                    progressPercent.value = total > 0 ? (finishedCount / total) * 100 : 0
-                }
-                hasLoadedStatus.value = true
-                isUpdatingStatus.value = false
-                resolve()
-            })
-        })
+                const finishedCount = processedResults.value.length
+                const total = finishedCount + activeCount.value + queueLength.value
+                progressPercent.value = total > 0 ? (finishedCount / total) * 100 : 0
+            }
+        } catch (_) {
+            // ignore transient runtime wake-up failures
+        } finally {
+            hasLoadedStatus.value = true
+            isUpdatingStatus.value = false
+        }
     }
 
-    const startBatch = async (items: BatchItem[], format: string, options: any) => {
-        await sendMessage({
-            action: 'START_BATCH_PROCESS',
-            items,
+    const startBatch = async (items: BatchScanListItem[], format: ExportFormat, options: BatchTaskOptions) => {
+        const payload: RuntimeBatchQueueItemInput[] = items.map((item) => ({
+            url: item.url,
+            title: item.title,
+            taskType: item.taskType,
+            format,
+            options
+        }))
+        await sendRuntimeMessage({
+            action: RUNTIME_ACTIONS.START_BATCH_PROCESS,
+            items: payload,
             format,
             options
         })
@@ -88,7 +82,7 @@ export const useBatchStore = defineStore('batch', () => {
         // Optimistic update to avoid perceived freeze.
         isPaused.value = true
         try {
-            await sendMessage({ action: 'PAUSE_BATCH' })
+            await sendRuntimeMessage({ action: RUNTIME_ACTIONS.PAUSE_BATCH })
             await updateStatus()
         } finally {
             isPausing.value = false
@@ -101,7 +95,7 @@ export const useBatchStore = defineStore('batch', () => {
         // Optimistic update to avoid perceived freeze.
         isPaused.value = false
         try {
-            await sendMessage({ action: 'RESUME_BATCH' })
+            await sendRuntimeMessage({ action: RUNTIME_ACTIONS.RESUME_BATCH })
             await updateStatus()
         } finally {
             isResuming.value = false
@@ -109,7 +103,7 @@ export const useBatchStore = defineStore('batch', () => {
     }
 
     const clearResults = async () => {
-        await sendMessage({ action: 'CLEAR_BATCH_RESULTS' })
+        await sendRuntimeMessage({ action: RUNTIME_ACTIONS.CLEAR_BATCH_RESULTS })
         processedResults.value = []
         await updateStatus()
     }
@@ -119,7 +113,7 @@ export const useBatchStore = defineStore('batch', () => {
         next.add(url)
         retryingUrls.value = next
         try {
-            await sendMessage({ action: 'RETRY_BATCH_ITEM', url })
+            await sendRuntimeMessage({ action: RUNTIME_ACTIONS.RETRY_BATCH_ITEM, url })
             await updateStatus()
         } finally {
             const done = new Set(retryingUrls.value)
@@ -132,7 +126,7 @@ export const useBatchStore = defineStore('batch', () => {
         if (isRetryingAll.value) return
         isRetryingAll.value = true
         try {
-            await sendMessage({ action: 'RETRY_ALL_FAILED' })
+            await sendRuntimeMessage({ action: RUNTIME_ACTIONS.RETRY_ALL_FAILED })
             await updateStatus()
         } finally {
             isRetryingAll.value = false

@@ -9,7 +9,7 @@ import { useToast } from '../composables/useToast'
 import { useSupportDetection } from '../composables/useSupportDetection'
 import { useExtractor } from '../composables/useExtractor'
 import { useBatchStatusPolling } from '../composables/useBatchStatusPolling'
-import type { ExportFormat, TaskType } from '../platformRegistry'
+import { getDefaultSingleFormats, type ExportFormat, type TaskType } from '../platformRegistry'
 
 const version = ref('1.7.2')
 const activeTab = ref('main')
@@ -19,13 +19,8 @@ const batchStore = useBatchStore()
 const { toastMsg, showToast, triggerToast, dismissToast } = useToast()
 const { isSupported, supportMessage, isDetecting, activePlatform, activePageContext, activeUrl, checkSupport } = useSupportDetection()
 
-const defaultSingleFormatsByTask = (taskType: TaskType): ExportFormat[] => {
-  if (taskType === 'review') return ['markdown', 'html', 'pdf', 'csv', 'json']
-  return ['markdown', 'html', 'pdf']
-}
-
-const currentTaskType = computed<TaskType>(() => activePageContext.value?.platform.capabilities.taskType || activePlatform.value?.capabilities.taskType || 'doc')
-const singleFormats = computed<ExportFormat[]>(() => activePageContext.value?.ui.singleFormats || defaultSingleFormatsByTask(currentTaskType.value))
+const currentTaskType = computed<TaskType>(() => activePageContext.value?.platform.taskType || activePlatform.value?.taskType || 'doc')
+const singleFormats = computed<ExportFormat[]>(() => activePageContext.value?.ui.singleFormats || getDefaultSingleFormats(currentTaskType.value))
 const hasSingleFormat = (format: ExportFormat) => singleFormats.value.includes(format)
 
 const isReviewTask = computed(() => currentTaskType.value === 'review')

@@ -1,5 +1,6 @@
 import { PlatformAdapterFactory } from './adapters';
 import JSZip from 'jszip';
+import { CONTENT_ACTIONS, CONTENT_PORTS, type ExtractFormat } from '../shared/contracts/content';
 
 class App {
     static readonly LOCAL_ARCHIVE_TIMEOUT_MS = 3 * 60_000;
@@ -16,7 +17,7 @@ class App {
 
         if (chrome.runtime.onMessage) {
             chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-                if (request.action === 'EXTRACT_CONTENT') {
+                if (request.action === CONTENT_ACTIONS.EXTRACT_CONTENT) {
                     App.handleExtraction(request.format, request.options)
                         .then(result => {
                             if (typeof result === 'object' && result.content) {
@@ -29,28 +30,28 @@ class App {
                     return true;
                 }
 
-                if (request.action === 'EXTRACT_AND_DOWNLOAD_LOCAL') {
+                if (request.action === CONTENT_ACTIONS.EXTRACT_AND_DOWNLOAD_LOCAL) {
                     App.handleLocalDownload(request.format, request.options)
                         .then(result => sendResponse({ success: true, title: document.title, ...result }))
                         .catch(error => sendResponse({ success: false, error: error.message }));
                     return true;
                 }
 
-                if (request.action === 'EXTRACT_LOCAL_ARCHIVE') {
+                if (request.action === CONTENT_ACTIONS.EXTRACT_LOCAL_ARCHIVE) {
                     App.handleLocalArchive(request.format, request.options)
                         .then(result => sendResponse({ success: true, title: document.title, ...result }))
                         .catch(error => sendResponse({ success: false, error: error.message }));
                     return true;
                 }
 
-                if (request.action === 'SCAN_LINKS') {
+                if (request.action === CONTENT_ACTIONS.SCAN_LINKS) {
                     App.handleScan()
                         .then(links => sendResponse({ success: true, links }))
                         .catch(error => sendResponse({ success: false, error: error.message }));
                     return true;
                 }
 
-                if (request.action === 'STOP_SCROLL_SCAN') {
+                if (request.action === CONTENT_ACTIONS.STOP_SCROLL_SCAN) {
                     App.stopScrollScan();
                     sendResponse({ success: true });
                     return false;
@@ -395,7 +396,7 @@ class App {
         return content;
     }
 
-    static async handleLocalDownload(format: 'markdown' | 'html' | 'csv' | 'json', options: any) {
+    static async handleLocalDownload(format: ExtractFormat, options: any) {
         const result = await App.handleExtraction(format, options) as { content?: string; images?: any[] };
         const content = App.encodeExportContent(format, result?.content || '');
         const images = Array.isArray(result?.images) ? result.images : [];
@@ -426,7 +427,7 @@ class App {
         return { hasImages: false, imageCount: 0 };
     }
 
-    static async handleLocalArchive(format: 'markdown' | 'html' | 'csv' | 'json', options: any) {
+    static async handleLocalArchive(format: ExtractFormat, options: any) {
         console.log('[LocalArchive] Start archive extraction');
         const result = await App.handleExtraction(format, options) as { content?: string; images?: any[] };
         const content = App.encodeExportContent(format, result?.content || '');
@@ -497,7 +498,7 @@ class App {
 
 // Listen for port connections (scroll scan)
 chrome.runtime.onConnect.addListener((port) => {
-    if (port.name === 'scroll-scan') {
+    if (port.name === CONTENT_PORTS.SCROLL_SCAN) {
         App.handleScrollScan(port);
     }
 });

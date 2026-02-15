@@ -1,5 +1,6 @@
 import { runtimeState } from './state'
-import type { BatchItem } from './types'
+import { isBatchArchiveResult, type BatchQueueItem, type BatchResultItem } from './types'
+import type { BatchTaskOptions } from '../shared/models/batch'
 
 const MAX_BATCH_CONCURRENCY = 3
 const THROTTLE_COOLDOWN_MS = 45_000
@@ -10,21 +11,21 @@ let configuredConcurrency = 1
 let throttledConcurrency = 1
 let throttleCooldownUntil = 0
 
-function normalizeBatchConcurrency(value: any): number {
+function normalizeBatchConcurrency(value: unknown): number {
     const n = Number(value)
     if (!Number.isFinite(n)) return 1
     return Math.max(1, Math.min(MAX_BATCH_CONCURRENCY, Math.round(n)))
 }
 
-export function updateConfiguredConcurrencyFromOptions(options?: any) {
+export function updateConfiguredConcurrencyFromOptions(options?: BatchTaskOptions) {
     const next = normalizeBatchConcurrency(options?.batchConcurrency)
     configuredConcurrency = next
     throttledConcurrency = Math.min(throttledConcurrency, configuredConcurrency)
     if (throttledConcurrency < 1) throttledConcurrency = 1
 }
 
-export function updateConfiguredConcurrency(value: any) {
-    updateConfiguredConcurrencyFromOptions({ batchConcurrency: value })
+export function updateConfiguredConcurrency(value: unknown) {
+    updateConfiguredConcurrencyFromOptions({ batchConcurrency: Number(value) })
 }
 
 function getStoredResultBytes() {
@@ -60,7 +61,7 @@ export function recordTaskOutcome(success: boolean) {
 }
 
 export function syncRuntimeState() {
-    const firstActive = runtimeState.activeTasks.values().next().value as { item: BatchItem; tabId: number | null } | undefined
+    const firstActive = runtimeState.activeTasks.values().next().value as { item: BatchQueueItem; tabId: number | null } | undefined
     runtimeState.currentItem = firstActive?.item || null
     runtimeState.currentTabId = firstActive?.tabId ?? null
     runtimeState.isProcessing = runtimeState.activeTasks.size > 0 || runtimeState.BATCH_QUEUE.length > 0
@@ -70,8 +71,8 @@ export function isTaskCancelled(url: string) {
     return runtimeState.isPaused || runtimeState.cancelledTaskUrls.has(url)
 }
 
-export function collectArchiveStorageKeys(items: BatchItem[]) {
+export function collectArchiveStorageKeys(items: BatchResultItem[]) {
     return items
-        .map(item => item.archiveStorageKey)
+        .map(item => isBatchArchiveResult(item) ? item.archiveStorageKey : undefined)
         .filter((k): k is string => !!k)
 }

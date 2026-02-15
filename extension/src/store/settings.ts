@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { detectPlatformByUrl } from '../platformRegistry'
+import { sendRuntimeMessage } from '../infra/chrome/runtimeClient'
+import { RUNTIME_ACTIONS } from '../shared/contracts/runtime'
 
 export interface OssConfig {
     provider: string
@@ -80,13 +82,13 @@ export const useSettingsStore = defineStore('settings', () => {
     }, { immediate: true })
     const syncBatchConcurrencyToBackground = (val: number) => {
         const normalized = Math.max(1, Math.min(3, val))
-        chrome.runtime.sendMessage({
-            action: 'SET_BATCH_CONCURRENCY',
+        void sendRuntimeMessage({
+            action: RUNTIME_ACTIONS.SET_BATCH_CONCURRENCY,
             value: normalized
-        }, () => {
-            // Consume runtime error in case service worker is sleeping or reloading
-            void chrome.runtime.lastError
         })
+            .catch(() => {
+                // ignore transient runtime wake-up failures
+            })
     }
 
     watch(batchConcurrency, (val) => {

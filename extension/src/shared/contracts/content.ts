@@ -28,6 +28,9 @@ export interface ExtractionOptions {
     reviewMaxCount?: number
     reviewRecentDays?: number
     reviewMaxPages?: number
+    socialIncludeReplies?: boolean
+    socialMaxCount?: number
+    socialMaxRounds?: number
     batchConcurrency?: number
     imageConfig?: Record<string, unknown>
     [key: string]: unknown

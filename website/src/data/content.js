@@ -10,10 +10,10 @@ export const content = {
             repo: "GitHub Repo"
         },
         hero: {
-            badge: "v1.7.0 is out now",
+            badge: "v1.8.0 is out now",
             titleStart: "Export Everything,",
             titleEnd: "Own Your Data",
-            description: "The ultimate universal content extractor for your browser. v1.7.0 adds dedicated JD/Taobao/Tmall review extraction, foreground scrolling collection, and CSV/JSON review exports with richer download-center progress. From cloud docs and job listings to product reviews, effortlessly convert online content into clean Markdown, Rich Text, or beautifully bookmarked PDFs.",
+            description: "The ultimate universal content extractor for your browser. v1.8.0 adds dedicated Douyin/Xiaohongshu/Bilibili social-comment extraction with API+DOM hybrid collection, while keeping strong JD/Taobao/Tmall review workflows. From cloud docs and job listings to social and e-commerce comments, effortlessly convert online content into clean Markdown, Rich Text, CSV/JSON, or beautifully bookmarked PDFs.",
             addToChrome: "Add to Chrome",
             exploreFeatures: "Explore Features"
         },
@@ -31,7 +31,7 @@ export const content = {
                 },
                 {
                     title: "Multi-Source Support",
-                    description: "Intelligent adapters tailored for Feishu/Lark docs, Boss Zhipin jobs, and JD/Taobao/Tmall product reviews."
+                    description: "Intelligent adapters tailored for Feishu/Lark docs, Boss Zhipin jobs, JD/Taobao/Tmall product reviews, and Douyin/Xiaohongshu/Bilibili social comments."
                 },
                 {
                     title: "Smart Image Handling",
@@ -55,7 +55,7 @@ export const content = {
                 },
                 {
                     title: "Task Manager",
-                    description: "Built-in manager to track progress, history, and archives. v1.7.0 adds review-specific progress hints, ETA, quick download, and quality preview for CSV/JSON tasks."
+                    description: "Built-in manager to track progress, history, and archives. v1.8.0 adds platform-aware review hints, richer progress rounds, quick download, and quality preview for CSV/JSON tasks."
                 }
             ]
         },
@@ -103,10 +103,10 @@ export const content = {
             repo: "GitHub 仓库"
         },
         hero: {
-            badge: "v1.7.0 现已发布",
+            badge: "v1.8.0 现已发布",
             titleStart: "万物皆可导出",
             titleEnd: "数据回归自我",
-            description: "跨平台的在线内容提取神器。v1.7.0 新增京东/淘宝/天猫评论抓取能力，支持前台滚动增量抓取与 CSV/JSON 评论导出，并增强下载中心进度反馈。从云端文档、招聘信息到商品评论，一键将碎片内容转化为 Markdown、富文本或高品质 PDF。内置智能扫描与自动化流，让知识管理更高效、更纯粹。",
+            description: "跨平台的在线内容提取神器。v1.8.0 新增抖音/小红书/B站评论抓取能力，支持 API+DOM 组合抓取、回复展开与前台滚动增量提取，并延续京东/淘宝/天猫电商评论能力。从云端文档、招聘信息到社媒与商品评论，一键将碎片内容转化为 Markdown、富文本、CSV/JSON 或高品质 PDF。",
             addToChrome: "添加到 Chrome",
             exploreFeatures: "探索功能"
         },
@@ -124,7 +124,7 @@ export const content = {
                 },
                 {
                     title: "多平台兼容",
-                    description: "预置飞书/Lark、BOSS直聘，以及京东/淘宝/天猫评论抓取适配器，持续扩展更多主流内容平台。"
+                    description: "预置飞书/Lark、BOSS直聘，以及京东/淘宝/天猫/抖音/小红书/B站评论抓取适配器，持续扩展更多主流内容平台。"
                 },
                 {
                     title: "智能图片处理",
@@ -148,7 +148,7 @@ export const content = {
                 },
                 {
                     title: "现代下载中心",
-                    description: "内置任务管理器，支持持久化历史记录与 ZIP 归档。v1.7.0 新增评论任务进度提示、预计耗时与质检预览，轻松掌控你的所有导出任务。"
+                    description: "内置任务管理器，支持持久化历史记录与 ZIP 归档。v1.8.0 新增平台化评论任务提示、轮次进度与质检预览，轻松掌控你的所有导出任务。"
                 }
             ]
         },

@@ -27,6 +27,9 @@ export const useSettingsStore = defineStore('settings', () => {
     const reviewMaxCount = ref(Math.max(0, Math.min(2000, parseInt(localStorage.getItem('feishu-copy-review-max-count') || '100'))))
     const reviewRecentDays = ref(Math.max(0, Math.min(3650, parseInt(localStorage.getItem('feishu-copy-review-recent-days') || '0'))))
     const reviewMaxPages = ref(Math.max(1, Math.min(50, parseInt(localStorage.getItem('feishu-copy-review-max-pages') || '1'))))
+    const socialIncludeReplies = ref(localStorage.getItem('feishu-copy-social-include-replies') !== 'false')
+    const socialMaxCount = ref(Math.max(0, Math.min(5000, parseInt(localStorage.getItem('feishu-copy-social-max-count') || '500'))))
+    const socialMaxRounds = ref(Math.max(10, Math.min(400, parseInt(localStorage.getItem('feishu-copy-social-max-rounds') || '80'))))
 
     const ossConfig = ref<OssConfig>(JSON.parse(localStorage.getItem('feishu-copy-oss-config') || '{}'))
     if (!ossConfig.value.provider) {
@@ -80,6 +83,23 @@ export const useSettingsStore = defineStore('settings', () => {
         }
         localStorage.setItem('feishu-copy-review-max-pages', String(normalized))
     }, { immediate: true })
+    watch(socialIncludeReplies, (val) => localStorage.setItem('feishu-copy-social-include-replies', String(val)))
+    watch(socialMaxCount, (val) => {
+        const normalized = Math.max(0, Math.min(5000, Number(val) || 0))
+        if (normalized !== val) {
+            socialMaxCount.value = normalized
+            return
+        }
+        localStorage.setItem('feishu-copy-social-max-count', String(normalized))
+    }, { immediate: true })
+    watch(socialMaxRounds, (val) => {
+        const normalized = Math.max(10, Math.min(400, Number(val) || 10))
+        if (normalized !== val) {
+            socialMaxRounds.value = normalized
+            return
+        }
+        localStorage.setItem('feishu-copy-social-max-rounds', String(normalized))
+    }, { immediate: true })
     const syncBatchConcurrencyToBackground = (val: number) => {
         const normalized = Math.max(1, Math.min(3, val))
         void sendRuntimeMessage({
@@ -120,6 +140,9 @@ export const useSettingsStore = defineStore('settings', () => {
         reviewMaxCount,
         reviewRecentDays,
         reviewMaxPages,
+        socialIncludeReplies,
+        socialMaxCount,
+        socialMaxRounds,
         ossConfig,
         setMergeBatchContextAware
     }

@@ -11,7 +11,7 @@ import { useExtractor } from '../composables/useExtractor'
 import { useBatchStatusPolling } from '../composables/useBatchStatusPolling'
 import { getDefaultSingleFormats, type ExportFormat, type TaskType } from '../platformRegistry'
 
-const version = ref('1.7.2')
+const version = ref('1.8.0')
 const activeTab = ref('main')
 const settings = useSettingsStore()
 const batchStore = useBatchStore()
@@ -24,6 +24,10 @@ const singleFormats = computed<ExportFormat[]>(() => activePageContext.value?.ui
 const hasSingleFormat = (format: ExportFormat) => singleFormats.value.includes(format)
 
 const isReviewTask = computed(() => currentTaskType.value === 'review')
+const reviewPlatformId = computed(() => activePlatform.value?.id || '')
+const isSocialReviewPlatform = computed(() =>
+  isReviewTask.value && ['douyin', 'xiaohongshu', 'bilibili'].includes(reviewPlatformId.value)
+)
 const allowSingleActions = computed(() => activePageContext.value?.ui.allowSingleActions ?? true)
 const canRunSingleActions = computed(() => isSupported.value && allowSingleActions.value)
 const isSingleActionBlocked = computed(() => isSupported.value && !allowSingleActions.value)
@@ -97,6 +101,22 @@ const strategyHints = computed(() => {
 
   if (isReviewTask.value && (url.includes('taobao.com') || url.includes('tmall.com'))) {
     hints.push('已启用淘宝/天猫前台策略：自动打开“全部评价”并在评论容器内滚动增量抓取。')
+  }
+
+  if (isReviewTask.value && url.includes('douyin.com')) {
+    hints.push('已启用抖音策略：评论 API 拦截 + DOM 补漏 + 自动展开回复。')
+  }
+
+  if (isReviewTask.value && (url.includes('xiaohongshu.com') || url.includes('xhslink.com'))) {
+    hints.push('已启用小红书策略：评论 API 拦截 + 递归子评论 + 评论容器滚动增量抓取。')
+  }
+
+  if (isReviewTask.value && (url.includes('bilibili.com') || url.includes('b23.tv'))) {
+    hints.push('已启用 B 站策略：评论 API 拦截 + Shadow DOM 补漏 + 展开回复。')
+  }
+
+  if (isReviewTask.value && isSocialReviewPlatform.value) {
+    hints.push('建议保持内容详情页前台可见，可显著提升评论抓取稳定性。')
   }
 
   if (isReviewTask.value) {
@@ -174,9 +194,25 @@ const maybeStartOnboarding = () => {
   showOnboarding.value = true
 }
 
-const batchShortcutDescription = computed(() => currentTaskType.value === 'review'
-  ? '探测当前页面/列表下的商品链接并批量抓取评论'
-  : '探测当前页面/列表下的所有文档链接')
+const batchShortcutDescription = computed(() => {
+  if (currentTaskType.value !== 'review') {
+    return '探测当前页面/列表下的所有文档链接'
+  }
+  if (isSocialReviewPlatform.value) {
+    return '探测当前页面/作者页下的作品链接并批量抓取评论'
+  }
+  return '探测当前页面/列表下的商品链接并批量抓取评论'
+})
+const blockedBatchButtonLabel = computed(() =>
+  isSocialReviewPlatform.value ? '去批量页粘贴作品详情链接' : '去批量页粘贴商品详情链接'
+)
+const blockedBatchHint = computed(() => {
+  if (!isReviewTask.value) return ''
+  if (isSocialReviewPlatform.value) {
+    return '提示：当前页可直接去“批量”页粘贴多个作品详情链接抓评论，无需先打开作者页。'
+  }
+  return '提示：当前页可直接去“批量”页粘贴多个商品详情链接抓评论，无需先打开列表页。'
+})
 const canExportPdf = computed(() => (activePlatform.value?.capabilities.supportsPdf ?? true) && hasSingleFormat('pdf'))
 const canUseBatchScrollScan = computed(() => activePlatform.value?.capabilities.supportsScrollScan ?? true)
 
@@ -218,6 +254,9 @@ const queueReviewExtraction = async (format: 'csv' | 'json') => {
       reviewMaxCount: settings.reviewMaxCount,
       reviewRecentDays: settings.reviewRecentDays,
       reviewMaxPages: settings.reviewMaxPages,
+      socialIncludeReplies: settings.socialIncludeReplies,
+      socialMaxCount: settings.socialMaxCount,
+      socialMaxRounds: settings.socialMaxRounds,
       imageConfig: {
         enabled: false,
         ...settings.ossConfig
@@ -396,7 +435,7 @@ onUnmounted(() => {
           <button
             @click="activeTab = 'batch'"
             class="mt-3 h-10 px-4 rounded-lg bg-amber-600 text-white text-sm font-bold hover:bg-amber-700 transition-colors"
-          >去批量页粘贴商品详情链接</button>
+          >{{ blockedBatchButtonLabel }}</button>
         </div>
 
         <!-- Action Section -->
@@ -417,7 +456,7 @@ onUnmounted(() => {
           </button>
 
           <div v-if="isSingleActionBlocked" class="text-[13px] font-medium text-amber-700 dark:text-amber-300 px-1 -mt-1 leading-relaxed">
-            提示：当前页可直接去“批量”页粘贴多个商品详情链接抓评论，无需先打开列表页。
+            {{ blockedBatchHint }}
           </div>
 
           <div v-if="isReviewTask" class="rounded-2xl border border-slate-200/70 dark:border-slate-700/70 bg-white/70 dark:bg-slate-900/40 p-3">
@@ -503,7 +542,12 @@ onUnmounted(() => {
 
       <!-- Batch Tab -->
       <div v-if="activeTab === 'batch' && showBatchTab" class="fade-in h-full">
-        <BatchTab :task-type="currentTaskType" :supports-scroll-scan="canUseBatchScrollScan" :supports-pdf="canExportPdf" />
+        <BatchTab
+          :task-type="currentTaskType"
+          :supports-scroll-scan="canUseBatchScrollScan"
+          :supports-pdf="canExportPdf"
+          :active-platform-id="activePlatform?.id || ''"
+        />
       </div>
 
       <!-- Download Center (Manager) -->

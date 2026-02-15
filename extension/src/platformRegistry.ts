@@ -1,4 +1,4 @@
-export type PlatformId = 'feishu' | 'boss' | 'jd' | 'taobao'
+export type PlatformId = 'feishu' | 'boss' | 'jd' | 'taobao' | 'douyin' | 'xiaohongshu' | 'bilibili'
 
 export type TaskType = 'doc' | 'review'
 
@@ -9,6 +9,9 @@ type PlatformTaskTypeMap = {
     boss: 'doc'
     jd: 'review'
     taobao: 'review'
+    douyin: 'review'
+    xiaohongshu: 'review'
+    bilibili: 'review'
 }
 
 type PlatformTaskType<P extends PlatformId> = PlatformTaskTypeMap[P]
@@ -129,6 +132,51 @@ export const PLATFORM_REGISTRY: PlatformProfile[] = [
             supportsScrollScan: true,
             supportsPdf: true
         }
+    }),
+    definePlatformProfile({
+        id: 'douyin',
+        taskType: 'review',
+        label: '抖音评论',
+        supportMessage: '支持导出：抖音评论',
+        hostMatchers: ['douyin.com'],
+        defaults: {
+            mergeBatch: true
+        },
+        capabilities: {
+            supportsScanLinks: true,
+            supportsScrollScan: true,
+            supportsPdf: false
+        }
+    }),
+    definePlatformProfile({
+        id: 'xiaohongshu',
+        taskType: 'review',
+        label: '小红书评论',
+        supportMessage: '支持导出：小红书评论',
+        hostMatchers: ['xiaohongshu.com', 'xhslink.com'],
+        defaults: {
+            mergeBatch: true
+        },
+        capabilities: {
+            supportsScanLinks: true,
+            supportsScrollScan: true,
+            supportsPdf: false
+        }
+    }),
+    definePlatformProfile({
+        id: 'bilibili',
+        taskType: 'review',
+        label: 'B站评论',
+        supportMessage: '支持导出：B站评论',
+        hostMatchers: ['bilibili.com', 'b23.tv'],
+        defaults: {
+            mergeBatch: true
+        },
+        capabilities: {
+            supportsScanLinks: true,
+            supportsScrollScan: true,
+            supportsPdf: false
+        }
     })
 ]
 
@@ -170,6 +218,34 @@ const isTaobaoProductDetailUrl = (parsedUrl: URL) => {
     return isDetailHost && pathname.endsWith('/item.htm') && /^\d+$/.test(parsedUrl.searchParams.get('id') || '')
 }
 
+const isDouyinDetailUrl = (parsedUrl: URL) => {
+    const host = parsedUrl.hostname.toLowerCase()
+    if (!host.includes('douyin.com')) return false
+    const pathname = parsedUrl.pathname.toLowerCase()
+    const modalId = (parsedUrl.searchParams.get('modal_id') || '').trim()
+    return /\/video\/\d+(?:\/)?$/.test(pathname) || /^\d+$/.test(modalId)
+}
+
+const isXiaohongshuDetailUrl = (parsedUrl: URL) => {
+    const host = parsedUrl.hostname.toLowerCase()
+    if (!host.includes('xiaohongshu.com')) return false
+    const pathname = parsedUrl.pathname.toLowerCase()
+    return /\/(explore|discovery\/item)\/[a-z0-9_-]+(?:\/)?$/i.test(pathname)
+}
+
+const isBilibiliDetailUrl = (parsedUrl: URL) => {
+    const host = parsedUrl.hostname.toLowerCase()
+    if (!host.includes('bilibili.com')) return false
+    const pathname = parsedUrl.pathname.toLowerCase()
+    return /\/video\/(bv[a-z0-9]+|av\d+)(?:\/)?$/i.test(pathname)
+}
+
+const isDouyinShortUrl = (parsedUrl: URL) => parsedUrl.hostname.toLowerCase() === 'v.douyin.com'
+
+const isXiaohongshuShortUrl = (parsedUrl: URL) => parsedUrl.hostname.toLowerCase() === 'xhslink.com'
+
+const isBilibiliShortUrl = (parsedUrl: URL) => parsedUrl.hostname.toLowerCase() === 'b23.tv'
+
 const createCommerceReviewPolicy = (platformName: string, isDetailPage: (parsedUrl: URL) => boolean): PlatformPagePolicy => {
     return {
         rules: [
@@ -197,9 +273,53 @@ const createCommerceReviewPolicy = (platformName: string, isDetailPage: (parsedU
     }
 }
 
+const createSocialReviewPolicy = (
+    platformName: string,
+    isDetailPage: (parsedUrl: URL) => boolean,
+    isShortLinkPage?: (parsedUrl: URL) => boolean
+): PlatformPagePolicy => {
+    return {
+        rules: [
+            {
+                when: isDetailPage,
+                supportMessage: `当前是${platformName}内容详情页，可直接抓取评论 CSV / JSON`,
+                ui: {
+                    singleFormats: [...REVIEW_SINGLE_FORMATS],
+                    showBatchShortcut: true,
+                    showBatchTab: true,
+                    allowSingleActions: true
+                }
+            },
+            {
+                when: (parsedUrl) => !!isShortLinkPage && isShortLinkPage(parsedUrl),
+                supportMessage: `检测到${platformName}短链，开始抓取后会自动跳转到详情页并继续提取评论`,
+                ui: {
+                    singleFormats: [...REVIEW_SINGLE_FORMATS],
+                    showBatchShortcut: true,
+                    showBatchTab: true,
+                    allowSingleActions: true
+                }
+            },
+            {
+                when: () => true,
+                supportMessage: `当前不是${platformName}内容详情页。请进入详情页后单页抓取，或前往批量页扫描/粘贴多个详情链接`,
+                ui: {
+                    singleFormats: [...REVIEW_SINGLE_FORMATS],
+                    showBatchShortcut: true,
+                    showBatchTab: true,
+                    allowSingleActions: false
+                }
+            }
+        ]
+    }
+}
+
 const PLATFORM_PAGE_POLICIES: Partial<Record<PlatformId, PlatformPagePolicy>> = {
     jd: createCommerceReviewPolicy('京东', isJdProductDetailUrl),
-    taobao: createCommerceReviewPolicy('淘宝/天猫', isTaobaoProductDetailUrl)
+    taobao: createCommerceReviewPolicy('淘宝/天猫', isTaobaoProductDetailUrl),
+    douyin: createSocialReviewPolicy('抖音', isDouyinDetailUrl, isDouyinShortUrl),
+    xiaohongshu: createSocialReviewPolicy('小红书', isXiaohongshuDetailUrl, isXiaohongshuShortUrl),
+    bilibili: createSocialReviewPolicy('B站', isBilibiliDetailUrl, isBilibiliShortUrl)
 }
 
 export function detectPlatformByHostname(hostname: string): PlatformProfile | null {

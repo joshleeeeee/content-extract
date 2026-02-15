@@ -226,11 +226,11 @@ const getFailureTip = (item: BatchItem) => {
   }
 
   if (error.includes('评论区') || error.includes('容器')) {
-    return '请先手动展开“全部评价”，再点击重试。'
+    return '请先手动展开评论区（或全部评价），再点击重试。'
   }
 
   if (item.taskType === 'review') {
-    return '建议保持商品页前台可见，等待滚动完成后再重试。'
+    return '建议保持详情页前台可见，等待滚动完成后再重试。'
   }
 
   return '建议点击重试；若持续失败请刷新目标页面。'

@@ -10,7 +10,7 @@ const Footer = ({ lang }) => {
 
                 {/* Brand */}
                 <div>
-                    <h4 className="text-white font-bold text-lg mb-2">OnlineDocExporter</h4>
+                    <h4 className="text-white font-bold text-lg mb-2">ContentExtract</h4>
                     <p className="text-sm max-w-xs">
                         {t.brandDescription}
                     </p>
@@ -20,22 +20,22 @@ const Footer = ({ lang }) => {
                 <div className="flex gap-8 text-sm items-center">
                     <a href="#" className="hover:text-white transition-colors">{t.privacy}</a>
                     <a href="#" className="hover:text-white transition-colors">{t.terms}</a>
-                    <a href="https://github.com/joshleeeeee/online-doc-exporter#sponsor" target="_blank" className="hover:text-amber-400 transition-colors flex items-center gap-1 text-amber-500/80">
+                    <a href="https://github.com/joshleeeeee/content-extract#sponsor" target="_blank" className="hover:text-amber-400 transition-colors flex items-center gap-1 text-amber-500/80">
                         <Coffee size={14} />
                         {t.sponsor}
                     </a>
-                    <a href="https://github.com/joshleeeeee/online-doc-exporter" className="hover:text-white transition-colors">GitHub</a>
+                    <a href="https://github.com/joshleeeeee/content-extract" className="hover:text-white transition-colors">GitHub</a>
                 </div>
 
                 {/* Socials */}
                 <div className="flex gap-4">
-                    <a href="https://github.com/joshleeeeee/online-doc-exporter" className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 hover:text-white transition-all">
+                    <a href="https://github.com/joshleeeeee/content-extract" className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 hover:text-white transition-all">
                         <Github size={20} />
                     </a>
                     <a href="mailto:joshlindx@outlook.com" className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 hover:text-white transition-all">
                         <Mail size={20} />
                     </a>
-                    <a href="https://github.com/joshleeeeee/online-doc-exporter#sponsor" target="_blank" className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 hover:text-amber-400 transition-all text-slate-400" title={t.sponsor}>
+                    <a href="https://github.com/joshleeeeee/content-extract#sponsor" target="_blank" className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 hover:text-amber-400 transition-all text-slate-400" title={t.sponsor}>
                         <Coffee size={20} />
                     </a>
                 </div>

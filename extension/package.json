@@ -1,6 +1,6 @@
 {
-    "name": "onlinedocexporter-extension",
-    "version": "1.6.2",
+    "name": "content-extract-extension",
+    "version": "1.7.0",
     "private": true,
     "type": "module",
     "scripts": {

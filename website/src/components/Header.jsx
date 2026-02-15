@@ -24,7 +24,7 @@ const Header = ({ lang, toggleLang }) => {
                     className="flex items-center gap-2"
                 >
                     <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center transform rotate-3">
-                        <span className="text-white font-bold text-lg">O</span>
+                        <span className="text-white font-bold text-lg">C</span>
                     </div>
                     <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">
                         {t.brand}
@@ -64,7 +64,7 @@ const Header = ({ lang, toggleLang }) => {
                         animate={{ opacity: 1, scale: 1 }}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        href="https://github.com/joshleeeeee/online-doc-exporter"
+                        href="https://github.com/joshleeeeee/content-extract"
                         className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-full border border-slate-700 transition-all shadow-lg hover:shadow-indigo-500/20"
                     >
                         <Github size={18} />
@@ -113,7 +113,7 @@ const Header = ({ lang, toggleLang }) => {
                                 </a>
                             ))}
                             <a
-                                href="https://github.com/joshleeeeee/online-doc-exporter"
+                                href="https://github.com/joshleeeeee/content-extract"
                                 className="flex items-center gap-2 text-indigo-400 py-2 font-medium hover:text-indigo-300 transition-colors"
                             >
                                 <Github size={18} />

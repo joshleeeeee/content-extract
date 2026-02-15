@@ -2,7 +2,7 @@
 export const content = {
     en: {
         header: {
-            brand: "OnlineDocExporter",
+            brand: "ContentExtract",
             features: "Features",
             showcase: "Showcase",
             faq: "FAQ",
@@ -10,10 +10,10 @@ export const content = {
             repo: "GitHub Repo"
         },
         hero: {
-            badge: "v1.6.2 is out now",
+            badge: "v1.7.0 is out now",
             titleStart: "Export Everything,",
             titleEnd: "Own Your Data",
-            description: "The ultimate universal content extractor for your browser. v1.6.2 improves batch image naming with title-based folders plus hash suffixes, and removes Shortcut title prefixes for cleaner exports. From cloud docs to job listings, effortlessly convert online content into clean Markdown, Rich Text, or beautifully bookmarked PDFs.",
+            description: "The ultimate universal content extractor for your browser. v1.7.0 adds dedicated JD/Taobao/Tmall review extraction, foreground scrolling collection, and CSV/JSON review exports with richer download-center progress. From cloud docs and job listings to product reviews, effortlessly convert online content into clean Markdown, Rich Text, or beautifully bookmarked PDFs.",
             addToChrome: "Add to Chrome",
             exploreFeatures: "Explore Features"
         },
@@ -31,7 +31,7 @@ export const content = {
                 },
                 {
                     title: "Multi-Source Support",
-                    description: "Intelligent adapters tailored for various platforms including Feishu/Lark, Boss Zhipin, and more to come."
+                    description: "Intelligent adapters tailored for Feishu/Lark docs, Boss Zhipin jobs, and JD/Taobao/Tmall product reviews."
                 },
                 {
                     title: "Smart Image Handling",
@@ -39,7 +39,7 @@ export const content = {
                 },
                 {
                     title: "Automated Batching",
-                    description: "Automatically identifies capture targets on any page. Scan once and batch export everything as Markdown or PDF with native bookmarks."
+                    description: "Automatically identifies docs or product links on any page. Scan once and batch export with task-aware formats including Markdown, PDF, CSV, and JSON."
                 },
                 {
                     title: "Smart Content Merging",
@@ -55,7 +55,7 @@ export const content = {
                 },
                 {
                     title: "Task Manager",
-                    description: "Built-in manager to track capture progress, history, and archive all exports into ZIP files. Features single-item direct download for ultimate flexibility."
+                    description: "Built-in manager to track progress, history, and archives. v1.7.0 adds review-specific progress hints, ETA, quick download, and quality preview for CSV/JSON tasks."
                 }
             ]
         },
@@ -86,7 +86,7 @@ export const content = {
             privacy: "Privacy Policy",
             terms: "Terms of Service",
             sponsor: "Sponsor",
-            rights: "OnlineDocExporter. All rights reserved. Independence through open source.",
+            rights: "ContentExtract. All rights reserved. Independence through open source.",
             disclaimer: {
                 title: "Legal Disclaimer",
                 text: "This extension is for educational and personal research purposes ONLY. By using this tool, you assume all risks and liabilities. The developer is NOT responsible for any account bans, data loss, or legal consequences resulting from the use of this project. Use it at your own risk."
@@ -95,7 +95,7 @@ export const content = {
     },
     zh: {
         header: {
-            brand: "在线文档助手",
+            brand: "多源内容提取器",
             features: "功能特性",
             showcase: "演示流程",
             faq: "常见问题",
@@ -103,10 +103,10 @@ export const content = {
             repo: "GitHub 仓库"
         },
         hero: {
-            badge: "v1.6.2 现已发布",
+            badge: "v1.7.0 现已发布",
             titleStart: "万物皆可导出",
             titleEnd: "数据回归自我",
-            description: "跨平台的在线内容提取神器。v1.6.2 优化批量导出图片命名（按任务标题分目录并追加短哈希），并修复 Shortcut 标题前缀残留，导出结果更干净更稳定。从云端文档到招聘信息，一键将碎片内容转化为 Markdown、富文本或高品质 PDF。内置智能扫描与自动化流，让知识管理更高效、更纯粹。",
+            description: "跨平台的在线内容提取神器。v1.7.0 新增京东/淘宝/天猫评论抓取能力，支持前台滚动增量抓取与 CSV/JSON 评论导出，并增强下载中心进度反馈。从云端文档、招聘信息到商品评论，一键将碎片内容转化为 Markdown、富文本或高品质 PDF。内置智能扫描与自动化流，让知识管理更高效、更纯粹。",
             addToChrome: "添加到 Chrome",
             exploreFeatures: "探索功能"
         },
@@ -124,7 +124,7 @@ export const content = {
                 },
                 {
                     title: "多平台兼容",
-                    description: "预置飞书/Lark、BOSS直聘等深度适配器，持续扩展更多主流内容平台。"
+                    description: "预置飞书/Lark、BOSS直聘，以及京东/淘宝/天猫评论抓取适配器，持续扩展更多主流内容平台。"
                 },
                 {
                     title: "智能图片处理",
@@ -132,7 +132,7 @@ export const content = {
                 },
                 {
                     title: "自动化批处理",
-                    description: "智能识别页面中的可提取目标。一键扫描，支持选择 Markdown 或 PDF 格式，批量排队导出所有内容。"
+                    description: "智能识别页面中的可提取目标。一键扫描后按任务类型选择导出格式，支持 Markdown/PDF 以及评论场景的 CSV/JSON。"
                 },
                 {
                     title: "智能内容合并",
@@ -148,7 +148,7 @@ export const content = {
                 },
                 {
                     title: "现代下载中心",
-                    description: "内置任务管理器，支持持久化历史记录与 ZIP 归档。v1.4.0 新增单条记录快速提取，轻松掌控你的所有导出任务。"
+                    description: "内置任务管理器，支持持久化历史记录与 ZIP 归档。v1.7.0 新增评论任务进度提示、预计耗时与质检预览，轻松掌控你的所有导出任务。"
                 }
             ]
         },
@@ -179,7 +179,7 @@ export const content = {
             privacy: "隐私政策",
             terms: "服务条款",
             sponsor: "赞助作者",
-            rights: "OnlineDocExporter. 保留所有权利. 保持独立，拥抱开源.",
+            rights: "ContentExtract. 保留所有权利. 保持独立，拥抱开源.",
             disclaimer: {
                 title: "免责声明",
                 text: "本插件仅供技术研究、学术探讨以及个人备份自用。请勿将本插件用于任何商业用途、大规模非法抓取、侵犯版权或其他违反法律法规的行为。用户在使用本插件时，必须遵守所在地区法律法规及对应文档平台的服务条款。由此产生的任何个人账号封禁、合规性风险或法律责任，均由使用者自行承担，开发者概不负责。"

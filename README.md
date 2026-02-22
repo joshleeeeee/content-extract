@@ -43,11 +43,19 @@
 
 ## 🚀 快速上手
 
-### 安装方法
-1. 下载本项目或 Clone 到本地。
-2. 打开 Chrome 浏览器，进入 `chrome://extensions/`。
-3. 开启右上角的 **"开发者模式"**。
-4. 点击 **"加载解压的扩展程序"**，选择本项目中的 `extension` 文件夹。
+### 安装方法（推荐从 Release 安装）
+1. 打开项目的 [Releases 页面](https://github.com/joshleeeeee/content-extract/releases)。
+2. 下载最新版本的 `content-extract-v*.zip` 资源包。
+3. 将压缩包解压到本地目录（解压后目录内应直接包含 `manifest.json`）。
+4. 打开 Chrome/Edge 浏览器，进入扩展管理页（Chrome: `chrome://extensions/`，Edge: `edge://extensions/`）。
+5. 开启右上角的 **"开发者模式"**。
+6. 点击 **"加载解压的扩展程序"**，选择第 3 步解压后的目录。
+
+### 开发者安装（源码构建）
+1. Clone 本项目到本地。
+2. 在 `extension` 目录执行：`npm ci && npm run build`。
+3. 打开扩展管理页并开启 **"开发者模式"**。
+4. 点击 **"加载解压的扩展程序"**，选择 `extension/dist` 目录。
 
 
 

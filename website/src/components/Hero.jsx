@@ -56,7 +56,7 @@ const Hero = ({ lang }) => {
                         className="group relative px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full font-semibold transition-all shadow-lg hover:shadow-indigo-500/25 flex items-center gap-2"
                     >
                         <Download size={20} />
-                        <span>{t.addToChrome}</span>
+                        <span>{t.downloadRelease}</span>
                         <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                         <div className="absolute inset-0 rounded-full ring-2 ring-white/20 group-hover:ring-white/40 transition-all" />
                     </a>
@@ -67,6 +67,15 @@ const Hero = ({ lang }) => {
                         {t.exploreFeatures}
                     </a>
                 </motion.div>
+
+                <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.35 }}
+                    className="mt-4 text-sm text-slate-500"
+                >
+                    {t.installHint}
+                </motion.p>
 
                 {/* Hero Image Showcase */}
                 <motion.div

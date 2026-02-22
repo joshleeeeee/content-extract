@@ -3,9 +3,9 @@ export const content = {
     en: {
         header: {
             brand: "ContentExtract",
+            install: "Install",
             features: "Features",
             showcase: "Showcase",
-            faq: "FAQ",
             star: "Star on GitHub",
             repo: "GitHub Repo"
         },
@@ -14,8 +14,30 @@ export const content = {
             titleStart: "Export Everything,",
             titleEnd: "Own Your Data",
             description: "The ultimate universal content extractor for your browser. v1.8.0 adds dedicated Douyin/Xiaohongshu/Bilibili social-comment extraction with API+DOM hybrid collection, while keeping strong JD/Taobao/Tmall review workflows. From cloud docs and job listings to social and e-commerce comments, effortlessly convert online content into clean Markdown, Rich Text, CSV/JSON, or beautifully bookmarked PDFs.",
-            addToChrome: "Add to Chrome",
+            downloadRelease: "Download Release ZIP",
+            installHint: "Install manually: open chrome://extensions and load the unzipped folder.",
             exploreFeatures: "Explore Features"
+        },
+        install: {
+            title: "Install in 3 Minutes",
+            subtitle: "Recommended for most users: download the release package and load it as an unpacked extension.",
+            releaseTitle: "Method A: Release Package (Recommended)",
+            releaseSteps: [
+                "Open GitHub Releases and download the latest content-extract-v*.zip.",
+                "Unzip the package. Make sure the selected folder directly contains manifest.json.",
+                "Open chrome://extensions (or edge://extensions) and enable Developer mode.",
+                "Click 'Load unpacked' and select the unzipped folder."
+            ],
+            releaseCta: "Open Releases",
+            devTitle: "Method B: Build from Source",
+            devSteps: [
+                "Clone the repository and open the extension directory.",
+                "Run npm ci && npm run build.",
+                "Open the extensions page and enable Developer mode.",
+                "Click 'Load unpacked' and select extension/dist."
+            ],
+            devCta: "View Source",
+            note: "After each update, download the latest release again and reload the extension."
         },
         features: {
             highlight: "Everything you need.",
@@ -96,9 +118,9 @@ export const content = {
     zh: {
         header: {
             brand: "多源内容提取器",
+            install: "安装教程",
             features: "功能特性",
             showcase: "演示流程",
-            faq: "常见问题",
             star: "Star on GitHub",
             repo: "GitHub 仓库"
         },
@@ -107,8 +129,30 @@ export const content = {
             titleStart: "万物皆可导出",
             titleEnd: "数据回归自我",
             description: "跨平台的在线内容提取神器。v1.8.0 新增抖音/小红书/B站评论抓取能力，支持 API+DOM 组合抓取、回复展开与前台滚动增量提取，并延续京东/淘宝/天猫电商评论能力。从云端文档、招聘信息到社媒与商品评论，一键将碎片内容转化为 Markdown、富文本、CSV/JSON 或高品质 PDF。",
-            addToChrome: "添加到 Chrome",
+            downloadRelease: "下载 Release 安装包",
+            installHint: "下载后在 chrome://extensions 开启开发者模式，加载解压后的扩展目录。",
             exploreFeatures: "探索功能"
+        },
+        install: {
+            title: "3 分钟完成安装",
+            subtitle: "普通用户推荐使用 Release 安装包；开发者可按源码构建方式安装。",
+            releaseTitle: "方式 A：Release 安装包（推荐）",
+            releaseSteps: [
+                "打开 GitHub Releases，下载最新的 content-extract-v*.zip。",
+                "解压压缩包，并确认要选择的目录内直接包含 manifest.json。",
+                "打开 chrome://extensions（或 edge://extensions），开启开发者模式。",
+                "点击“加载解压的扩展程序”，选择解压后的目录。"
+            ],
+            releaseCta: "打开 Releases",
+            devTitle: "方式 B：源码构建安装",
+            devSteps: [
+                "Clone 仓库后进入 extension 目录。",
+                "执行 npm ci && npm run build。",
+                "打开扩展管理页并开启开发者模式。",
+                "点击“加载解压的扩展程序”，选择 extension/dist。"
+            ],
+            devCta: "查看源码",
+            note: "版本更新后请重新下载最新 Release，并在扩展管理页重新加载。"
         },
         features: {
             highlight: "核心功能，一应俱全",

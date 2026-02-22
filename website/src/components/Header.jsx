@@ -9,9 +9,9 @@ const Header = ({ lang, toggleLang }) => {
     const t = content[lang].header;
 
     const links = [
+        { name: t.install, href: '#install' },
         { name: t.features, href: '#features' },
         { name: t.showcase, href: '#showcase' },
-        { name: t.faq, href: '#faq' },
     ];
 
     return (

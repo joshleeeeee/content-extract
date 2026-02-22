@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import Header from './Header';
 import Hero from './Hero';
+import InstallGuide from './InstallGuide';
 import Features from './Features';
 import Showcase from './Showcase';
 import Footer from './Footer';
@@ -19,6 +20,7 @@ const App = () => {
             <Header lang={lang} toggleLang={toggleLang} />
             <main>
                 <Hero lang={lang} />
+                <InstallGuide lang={lang} />
                 <Features lang={lang} />
                 <Showcase lang={lang} />
             </main>

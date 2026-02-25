@@ -87,7 +87,7 @@ const Hero = ({ lang }) => {
                     <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl blur opacity-20 animate-pulse"></div>
                     <div className="relative rounded-2xl overflow-hidden border border-slate-700 shadow-2xl bg-slate-900/50">
                         <img
-                            src="/content-extract/images/preview-single.png"
+                            src="/images/preview-single.png"
                             alt="Extension Preview"
                             className="w-full h-auto block object-top hover:scale-105 transition-transform duration-700"
                         />

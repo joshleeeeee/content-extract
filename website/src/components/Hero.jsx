@@ -88,7 +88,7 @@ const Hero = ({ lang }) => {
                     <div className="relative rounded-2xl overflow-hidden border border-slate-700 shadow-2xl bg-slate-900/50">
                         <img
                             src="/images/preview-single.png"
-                            alt="Extension Preview"
+                            alt="ContentExtract 多源内容提取器 (Extractor) Preview"
                             className="w-full h-auto block object-top hover:scale-105 transition-transform duration-700"
                         />
 

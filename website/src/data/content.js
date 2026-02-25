@@ -11,9 +11,9 @@ export const content = {
         },
         hero: {
             badge: "v1.8.0 is out now",
-            titleStart: "Export Everything,",
-            titleEnd: "Own Your Data",
-            description: "The ultimate universal content extractor for your browser. v1.8.0 adds dedicated Douyin/Xiaohongshu/Bilibili social-comment extraction with API+DOM hybrid collection, while keeping strong JD/Taobao/Tmall review workflows. From cloud docs and job listings to social and e-commerce comments, effortlessly convert online content into clean Markdown, Rich Text, CSV/JSON, or beautifully bookmarked PDFs.",
+            titleStart: "Export Everything with",
+            titleEnd: "Content Extractor",
+            description: "The ultimate Multi-Source Content Extractor for your browser. v1.8.0 adds dedicated Douyin/Xiaohongshu/Bilibili social-comment extraction with API+DOM hybrid collection, while keeping strong JD/Taobao/Tmall review workflows. From cloud docs and job listings to social and e-commerce comments, effortlessly convert online content into clean Markdown, Rich Text, CSV/JSON, or beautifully bookmarked PDFs.",
             downloadRelease: "Download Release ZIP",
             installHint: "Install manually: open chrome://extensions and load the unzipped folder.",
             exploreFeatures: "Explore Features"
@@ -126,9 +126,9 @@ export const content = {
         },
         hero: {
             badge: "v1.8.0 现已发布",
-            titleStart: "万物皆可导出",
-            titleEnd: "数据回归自我",
-            description: "跨平台的在线内容提取神器。v1.8.0 新增抖音/小红书/B站评论抓取能力，支持 API+DOM 组合抓取、回复展开与前台滚动增量提取，并延续京东/淘宝/天猫电商评论能力。从云端文档、招聘信息到社媒与商品评论，一键将碎片内容转化为 Markdown、富文本、CSV/JSON 或高品质 PDF。",
+            titleStart: "使用多源内容提取器",
+            titleEnd: "万物皆可导出",
+            description: "这是专为浏览器打造的强大的多源内容提取器 (Extractor)。v1.8.0 新增抖音/小红书/B站评论抓取能力，支持 API+DOM 组合抓取、回复展开与前台滚动增量提取，并延续京东/淘宝/天猫电商评论能力。从云端文档、招聘信息到社媒与商品评论，一键将碎片内容转化为 Markdown、富文本、CSV/JSON 或高品质 PDF。",
             downloadRelease: "下载 Release 安装包",
             installHint: "下载后在 chrome://extensions 开启开发者模式，加载解压后的扩展目录。",
             exploreFeatures: "探索功能"

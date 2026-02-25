@@ -1,5 +1,5 @@
 ---
-const { title = "ContentExtract | Multi-Source Content Extractor" } = Astro.props;
+const { title = "ContentExtract | 多源内容提取器 | Multi-Source Content Extractor" } = Astro.props;
 import "../styles/global.css";
 ---
 
@@ -7,11 +7,29 @@ import "../styles/global.css";
 <html lang="en" class="scroll-smooth">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="description" content="One-click extraction for docs, job posts, and product reviews with Markdown/PDF/CSV/JSON export." />
+		<meta name="description" content="多源内容提取器 (ContentExtract) 是一款功能强大的浏览器提取插件。支持将网页、飞书文档、京东淘宝评论等无缝转为 Markdown、PDF、CSV 或 JSON。Multi-source content extractor." />
 		<meta name="viewport" content="width=device-width" />
 		<link rel="icon" type="image/svg+xml" href="/content-extract/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
+
+		<!-- SEO Meta Tags -->
+		<meta name="keywords" content="多源内容提取器, ContentExtract, Extractor, 网页内容提取, Markdown导出, 飞书导出, 网页转PDF, 评论提取" />
+		<link rel="canonical" href="https://extractor.top/" />
+		
+		<!-- Open Graph / Facebook -->
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://extractor.top/" />
+		<meta property="og:title" content="ContentExtract | 多源内容提取器 | Multi-Source Content Extractor" />
+		<meta property="og:description" content="多源内容提取器 (ContentExtract) 是一款极速导出神器。支持将网页、飞书文档、京东淘宝评论、社媒抓包等无缝转为 Markdown、PDF、CSV 或 JSON。" />
+		<meta property="og:image" content="https://extractor.top/images/preview-single.png" />
+
+		<!-- Twitter -->
+		<meta property="twitter:card" content="summary_large_image" />
+		<meta property="twitter:url" content="https://extractor.top/" />
+		<meta property="twitter:title" content="ContentExtract | 多源内容提取器 | Multi-Source Content Extractor" />
+		<meta property="twitter:description" content="多源内容提取器 (ContentExtract) 是一款极速导出神器。支持将网页、飞书文档、京东淘宝评论、社媒抓包等无缝转为 Markdown、PDF、CSV 或 JSON。" />
+		<meta property="twitter:image" content="https://extractor.top/images/preview-single.png" />
 
 		<!-- Fonts -->
 		<link rel="preconnect" href="https://fonts.googleapis.com">

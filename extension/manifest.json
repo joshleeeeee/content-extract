@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ContentExtract",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Powerful tool to copy/export online documents (Feishu/Lark etc.) as Markdown or Rich Text.",
   "permissions": [
     "activeTab",
@@ -52,6 +52,18 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "ContentExtract"
+    "default_title": "ContentExtract",
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
   }
 }

@@ -348,19 +348,22 @@ onUnmounted(() => {
     <!-- Header -->
     <header class="h-16 px-5 flex items-center justify-between bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60 shrink-0 z-10">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
+        <img src="/icon128.png" alt="Logo" class="w-10 h-10 object-contain rounded-2xl shadow-lg shadow-blue-500/20" />
+        <div class="flex flex-col">
+          <h1 class="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-widest leading-tight">
+            多源内容提取器
+          </h1>
+          <span class="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5 font-medium truncate max-w-[160px]">
+            网页·飞书·电商·社媒等多平台
+          </span>
         </div>
-        <h1 class="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent italic">
-          ContentExtract
-        </h1>
       </div>
-      <div class="flex items-center gap-4">
-        <a href="https://github.com/joshleeeeee/content-extract#sponsor" target="_blank" class="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-3 py-2 rounded-full font-bold hover:bg-amber-200 transition-all hover:scale-105 active:scale-95">
+      <div class="flex items-center gap-3">
+        <a href="https://extractor.top/#supported" target="_blank" class="text-[11px] flex items-center gap-1 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2.5 py-1.5 rounded-full font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all hover:scale-105 active:scale-95">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          支持能力
+        </a>
+        <a href="https://github.com/joshleeeeee/content-extract#sponsor" target="_blank" class="text-[11px] flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-2.5 py-1.5 rounded-full font-bold hover:bg-amber-200 transition-all hover:scale-105 active:scale-95">
           ☕ 打赏
         </a>
         <div class="flex flex-col items-end">

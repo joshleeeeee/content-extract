@@ -1,6 +1,10 @@
+<p align="center">
+  <img src="icon.svg" width="100" alt="ContentExtract Logo" />
+</p>
+
 # 🚀 ContentExtract (多源内容提取器)
 
-[![Version](https://img.shields.io/badge/version-v1.8.0-blue.svg)](https://github.com/joshleeeeee/content-extract)
+[![Version](https://img.shields.io/badge/version-v1.8.1-blue.svg)](https://github.com/joshleeeeee/content-extract)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Chrome%20%7C%20Edge%20%7C%20Lark%20%7C%20JD%20%7C%20Taobao%20%7C%20Douyin%20%7C%20Xiaohongshu%20%7C%20Bilibili-lightgrey.svg)](https://github.com/joshleeeeee/content-extract)
 

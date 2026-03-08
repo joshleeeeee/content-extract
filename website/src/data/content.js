@@ -5,15 +5,16 @@ export const content = {
             brand: "ContentExtract",
             install: "Install",
             features: "Features",
+            supported: "Supported Platforms",
             showcase: "Showcase",
             star: "Star on GitHub",
             repo: "GitHub Repo"
         },
         hero: {
-            badge: "v1.8.0 is out now",
+            badge: "🚀 v1.8.1 is out now",
             titleStart: "Export Everything with",
             titleEnd: "Content Extractor",
-            description: "The ultimate Multi-Source Content Extractor for your browser. v1.8.0 adds dedicated Douyin/Xiaohongshu/Bilibili social-comment extraction with API+DOM hybrid collection, while keeping strong JD/Taobao/Tmall review workflows. From cloud docs and job listings to social and e-commerce comments, effortlessly convert online content into clean Markdown, Rich Text, CSV/JSON, or beautifully bookmarked PDFs.",
+            description: "The ultimate Multi-Source Batch Extractor for your browser. Built to seamlessly bulk export cloud documents (Feishu), job listings (BOSS), product reviews (JD/Taobao), and deeply-nested social media comments (Douyin/Xiaohongshu/Bilibili). Utilizing advanced hybrid API+DOM extraction and auto-scrolling, it effortlessly automates large-scale scraping of online data into clean Markdown, Rich Text, CSV/JSON datasets, and beautifully bookmarked PDFs. No coding required.",
             downloadRelease: "Download Release ZIP",
             installHint: "Install manually: open chrome://extensions and load the unzipped folder.",
             exploreFeatures: "Explore Features"
@@ -103,6 +104,61 @@ export const content = {
                 point2: "Developer-friendly output"
             }
         },
+        supportedPlatforms: {
+            badge: "Out of the box",
+            title: "Supported Platforms & Workflows",
+            subtitle: "A precise list of which websites, which pages, and what exact content you can extract.",
+            tableHeaders: {
+                platform: "Platform",
+                page: "Pages",
+                content: "Extracted Content",
+                format: "Export Formats"
+            },
+            items: [
+                {
+                    name: "Feishu / Lark",
+                    page: "Document viewing pages (feishu.cn, larksuite.com)",
+                    content: "Full document structure, rich text, tables, code blocks, outline bookmarks",
+                    formats: ["Markdown", "PDF", "HTML"]
+                },
+                {
+                    name: "BOSS Zhipin",
+                    page: "Job detail pages (zhipin.com)",
+                    content: "Job descriptions, requirements, company info, salary ranges",
+                    formats: ["Markdown", "PDF", "HTML"]
+                },
+                {
+                    name: "JD / JD.hk",
+                    page: "Product detail pages, Product lists",
+                    content: "User reviews, ratings, user uploaded images, timestamps",
+                    formats: ["CSV", "JSON"]
+                },
+                {
+                    name: "Taobao / Tmall",
+                    page: "Product detail pages, Shopping cart links",
+                    content: "Buyer reviews, appended feedback, images, SKUs",
+                    formats: ["CSV", "JSON"]
+                },
+                {
+                    name: "Douyin (TikTok)",
+                    page: "Video detail pages, Shared short links (v.douyin.com)",
+                    content: "Comments, deep nested replies, IP locations, likes count",
+                    formats: ["CSV", "JSON"]
+                },
+                {
+                    name: "Xiaohongshu (RED)",
+                    page: "Post/Note detail pages, Shared short links (xhslink.com)",
+                    content: "Comments, sub-replies, user IDs, likes",
+                    formats: ["CSV", "JSON"]
+                },
+                {
+                    name: "Bilibili",
+                    page: "Video detail pages, Shared short links (b23.tv)",
+                    content: "Video comments, nested replies, upvotes, timestamps",
+                    formats: ["CSV", "JSON"]
+                }
+            ]
+        },
         footer: {
             brandDescription: "Open-source tool designed to liberate your documentation. Built with precision and care.",
             privacy: "Privacy Policy",
@@ -120,15 +176,16 @@ export const content = {
             brand: "多源内容提取器",
             install: "安装教程",
             features: "功能特性",
+            supported: "支持平台",
             showcase: "演示流程",
             star: "Star on GitHub",
             repo: "GitHub 仓库"
         },
         hero: {
-            badge: "v1.8.0 现已发布",
+            badge: "🚀 v1.8.1 现已发布",
             titleStart: "使用多源内容提取器",
             titleEnd: "万物皆可导出",
-            description: "这是专为浏览器打造的强大的多源内容提取器 (Extractor)。v1.8.0 新增抖音/小红书/B站评论抓取能力，支持 API+DOM 组合抓取、回复展开与前台滚动增量提取，并延续京东/淘宝/天猫电商评论能力。从云端文档、招聘信息到社媒与商品评论，一键将碎片内容转化为 Markdown、富文本、CSV/JSON 或高品质 PDF。",
+            description: "专为浏览器打造的强大的多平台批量内容提取器 (Batch Extractor)。从飞书云端文档、BOSS 招聘信息的自动提取，到京东/淘宝商品评价、抖音/小红书/B站社媒评论的深度下钻机制，均可通过 API+DOM 配合无限向下追踪实现全自动的批量抓取。免写代码，一键将全网海量碎片内容转化为标准的 Markdown、富文本、结构化 CSV/JSON 或高品质 PDF 文档库。",
             downloadRelease: "下载 Release 安装包",
             installHint: "下载后在 chrome://extensions 开启开发者模式，加载解压后的扩展目录。",
             exploreFeatures: "探索功能"
@@ -217,6 +274,61 @@ export const content = {
                 point1: "自动化图床配置",
                 point2: "开发者模式支持"
             }
+        },
+        supportedPlatforms: {
+            badge: "开箱即用",
+            title: "全平台一览",
+            subtitle: "一目了然：在哪个网站、在哪个页面、能抓什么内容、能够导出什么格式。",
+            tableHeaders: {
+                platform: "支持网站",
+                page: "适用页面或路由",
+                content: "提取的详细内容",
+                format: "可导出格式"
+            },
+            items: [
+                {
+                    name: "飞书 / Lark 文档",
+                    page: "文档浏览页 (feishu.cn, larksuite.com 等)",
+                    content: "完整文档正文、富文本排版、深层多级列表、代码块、原生大纲目录书签",
+                    formats: ["Markdown", "PDF", "HTML"]
+                },
+                {
+                    name: "BOSS 直聘",
+                    page: "职位详情页 (zhipin.com)",
+                    content: "职位详细描述(JD)、岗位要求、薪资范围、公司全称及基本概况",
+                    formats: ["Markdown", "PDF", "HTML"]
+                },
+                {
+                    name: "京东 (JD) / 国际",
+                    page: "商品详情页、商品列表页盲猜链接",
+                    content: "用户评价正文、星级评分、完整追评数据、评价时间和用户买家秀图片链接",
+                    formats: ["CSV", "JSON"]
+                },
+                {
+                    name: "淘宝 / 天猫",
+                    page: "商品详情页、购物车分享链接",
+                    content: "买家评论正文、全部追加评论、带图评价合集、购买的商品 SKU 信息",
+                    formats: ["CSV", "JSON"]
+                },
+                {
+                    name: "抖音 (TikTok)",
+                    page: "视频详情/作品页、分享短链 (v.douyin.com)",
+                    content: "主评论、无限深层展开的子回复、用户 IP 属地、点赞数量、发布时间",
+                    formats: ["CSV", "JSON"]
+                },
+                {
+                    name: "小红书 (RED)",
+                    page: "图文/视频笔记详情页、分享短链 (xhslink.com)",
+                    content: "笔记下用户评论、全部嵌套二级回复列表、用户唯一 ID/昵称、点赞数",
+                    formats: ["CSV", "JSON"]
+                },
+                {
+                    name: "B 站 (Bilibili)",
+                    page: "视频播放页、分享短链 (b23.tv)",
+                    content: "视频下方主层级弹幕/评论、无限深层嵌套的回复流、点赞数与精准时间",
+                    formats: ["CSV", "JSON"]
+                }
+            ]
         },
         footer: {
             brandDescription: "开源工具，旨在解放你的在线数据。用心打造。",

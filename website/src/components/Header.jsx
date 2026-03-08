@@ -11,6 +11,7 @@ const Header = ({ lang, toggleLang }) => {
     const links = [
         { name: t.install, href: '#install' },
         { name: t.features, href: '#features' },
+        { name: t.supported, href: '#supported' },
         { name: t.showcase, href: '#showcase' },
     ];
 
@@ -23,9 +24,7 @@ const Header = ({ lang, toggleLang }) => {
                     transition={{ duration: 0.5 }}
                     className="flex items-center gap-2"
                 >
-                    <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center transform rotate-3">
-                        <span className="text-white font-bold text-lg">C</span>
-                    </div>
+                    <img src="/favicon.svg" alt="Logo" className="w-8 h-8 object-contain" />
                     <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">
                         {t.brand}
                     </span>

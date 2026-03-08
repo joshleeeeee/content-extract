@@ -4,6 +4,7 @@ import Header from './Header';
 import Hero from './Hero';
 import InstallGuide from './InstallGuide';
 import Features from './Features';
+import SupportedPlatforms from './SupportedPlatforms';
 import Showcase from './Showcase';
 import Footer from './Footer';
 
@@ -22,6 +23,7 @@ const App = () => {
                 <Hero lang={lang} />
                 <InstallGuide lang={lang} />
                 <Features lang={lang} />
+                <SupportedPlatforms lang={lang} />
                 <Showcase lang={lang} />
             </main>
             <Footer lang={lang} />

@@ -181,6 +181,17 @@ async function runBatchItem(item: BatchQueueItem) {
         await waitForTabLoad(tabId)
         if (isTaskCancelled(taskUrl)) throw new Error('Cancelled')
 
+        const totalTasks = runtimeState.BATCH_QUEUE.length + runtimeState.activeTasks.size + runtimeState.processedResults.length
+        const currentIndex = runtimeState.processedResults.length + runtimeState.activeTasks.size
+
+        await chrome.tabs.sendMessage(tabId, {
+            action: 'SHOW_PROGRESS',
+            current: currentIndex,
+            total: totalTasks,
+            title: item.title || 'Untitled',
+            status: '正在抓取'
+        }).catch(() => {})
+
         await new Promise(r => setTimeout(r, 4000))
         if (isTaskCancelled(taskUrl)) throw new Error('Cancelled')
 
@@ -312,7 +323,10 @@ async function runBatchItem(item: BatchQueueItem) {
         }
     } finally {
         if (tabId) {
-            try { await chrome.tabs.remove(tabId) } catch (_) { }
+            try {
+                await chrome.tabs.sendMessage(tabId, { action: 'HIDE_PROGRESS' }).catch(() => {})
+                await chrome.tabs.remove(tabId)
+            } catch (_) { }
         }
 
         if (windowId && runtimeState.windowPool) {

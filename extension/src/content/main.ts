@@ -1,9 +1,11 @@
 import { CONTENT_ACTIONS, CONTENT_PORTS } from '../shared/contracts/content';
 import { ExtractionHandler } from './extractionHandler';
 import { ScrollScanner } from './scrollScanner';
+import { ProgressBar } from './ProgressBar';
 
 class App {
     static scrollScanner = new ScrollScanner();
+    static progressBar = new ProgressBar();
 
     static init() {
         // Check if context is still valid
@@ -16,6 +18,18 @@ class App {
 
         if (chrome.runtime.onMessage) {
             chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+                if (request.action === 'SHOW_PROGRESS') {
+                    App.progressBar.show(request.current, request.total, request.title, request.status);
+                    sendResponse({ success: true });
+                    return false;
+                }
+
+                if (request.action === 'HIDE_PROGRESS') {
+                    App.progressBar.hide();
+                    sendResponse({ success: true });
+                    return false;
+                }
+
                 if (request.action === CONTENT_ACTIONS.EXTRACT_CONTENT) {
                     ExtractionHandler.extract(request.format, request.options)
                         .then(result => {

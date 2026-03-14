@@ -315,6 +315,30 @@ const reviewRecentDaysOptions = [
         </div>
         <p class="text-[10px] text-gray-400 px-1">系统会根据失败率和缓存体积动态降速，优先保证稳定性。</p>
       </div>
+
+      <div v-if="showAdvancedSettings" class="space-y-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col">
+            <span class="text-sm font-medium">多窗口模式</span>
+            <span class="text-[11px] text-gray-400">使用独立窗口提高抓取成功率（实验性）</span>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" v-model="settings.batchWindowMode" class="sr-only peer">
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-amber-600"></div>
+          </label>
+        </div>
+
+        <div v-if="settings.batchWindowMode" class="space-y-2">
+          <label class="text-[11px] font-medium text-gray-500 ml-1">窗口数量</label>
+          <select v-model.number="settings.batchWindowCount" class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg h-9 px-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+            <option :value="1">1 个窗口</option>
+            <option :value="2">2 个窗口</option>
+            <option :value="3">3 个窗口</option>
+            <option :value="4">4 个窗口</option>
+          </select>
+          <p class="text-[10px] text-gray-400 px-1">每个任务在独立前台窗口运行，窗口会自动复用</p>
+        </div>
+      </div>
     </section>
   </div>
 </template>

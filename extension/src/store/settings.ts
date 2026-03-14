@@ -30,6 +30,8 @@ export const useSettingsStore = defineStore('settings', () => {
     const socialIncludeReplies = ref(localStorage.getItem('feishu-copy-social-include-replies') !== 'false')
     const socialMaxCount = ref(Math.max(0, Math.min(5000, parseInt(localStorage.getItem('feishu-copy-social-max-count') || '500'))))
     const socialMaxRounds = ref(Math.max(10, Math.min(400, parseInt(localStorage.getItem('feishu-copy-social-max-rounds') || '80'))))
+    const batchWindowMode = ref(localStorage.getItem('feishu-copy-batch-window-mode') === 'true')
+    const batchWindowCount = ref(Math.max(1, Math.min(4, parseInt(localStorage.getItem('feishu-copy-batch-window-count') || '2'))))
 
     const ossConfig = ref<OssConfig>(JSON.parse(localStorage.getItem('feishu-copy-oss-config') || '{}'))
     if (!ossConfig.value.provider) {
@@ -100,6 +102,21 @@ export const useSettingsStore = defineStore('settings', () => {
         }
         localStorage.setItem('feishu-copy-social-max-rounds', String(normalized))
     }, { immediate: true })
+    watch(batchWindowMode, (val) => {
+        localStorage.setItem('feishu-copy-batch-window-mode', String(val))
+        void sendRuntimeMessage({
+            action: RUNTIME_ACTIONS.SET_BATCH_WINDOW_MODE,
+            value: val
+        }).catch(() => {})
+    })
+    watch(batchWindowCount, (val) => {
+        const normalized = Math.max(1, Math.min(4, val))
+        localStorage.setItem('feishu-copy-batch-window-count', String(normalized))
+        void sendRuntimeMessage({
+            action: RUNTIME_ACTIONS.SET_BATCH_WINDOW_COUNT,
+            value: normalized
+        }).catch(() => {})
+    }, { immediate: true })
     const syncBatchConcurrencyToBackground = (val: number) => {
         const normalized = Math.max(1, Math.min(3, val))
         void sendRuntimeMessage({
@@ -143,6 +160,8 @@ export const useSettingsStore = defineStore('settings', () => {
         socialIncludeReplies,
         socialMaxCount,
         socialMaxRounds,
+        batchWindowMode,
+        batchWindowCount,
         ossConfig,
         setMergeBatchContextAware
     }

@@ -1,4 +1,5 @@
 import type { BatchQueueItem, BatchResultItem } from './types'
+import type { WindowPool } from '../infra/chrome/windowClient'
 
 export interface ActiveTaskEntry {
     item: BatchQueueItem
@@ -18,6 +19,9 @@ export interface BatchRuntimeState {
     cancelledTaskUrls: Set<string>
     extractionRequestToUrl: Map<string, string>
     lastProgressPersistAt: number
+    windowPool: WindowPool | null
+    useWindowMode: boolean
+    windowPoolSize: number
 }
 
 export const runtimeState: BatchRuntimeState = {
@@ -31,5 +35,8 @@ export const runtimeState: BatchRuntimeState = {
     activeTasks: new Map(),
     cancelledTaskUrls: new Set(),
     extractionRequestToUrl: new Map(),
-    lastProgressPersistAt: 0
+    lastProgressPersistAt: 0,
+    windowPool: null,
+    useWindowMode: false,
+    windowPoolSize: 2
 }

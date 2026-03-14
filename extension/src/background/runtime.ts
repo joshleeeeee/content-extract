@@ -37,6 +37,10 @@ export function getConfiguredConcurrency() {
 }
 
 export function getEffectiveConcurrency() {
+    if (runtimeState.useWindowMode && runtimeState.windowPool) {
+        return runtimeState.windowPoolSize
+    }
+
     const now = Date.now()
     if (now > throttleCooldownUntil && throttledConcurrency < configuredConcurrency) {
         throttledConcurrency += 1

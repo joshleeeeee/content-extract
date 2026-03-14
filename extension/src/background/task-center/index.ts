@@ -8,6 +8,8 @@ import {
     retryAllFailed,
     retryBatchItem,
     setBatchConcurrency,
+    setBatchWindowMode,
+    setBatchWindowCount,
     startBatchProcess
 } from './commands'
 import { updateExtractionProgress } from './events'
@@ -17,6 +19,8 @@ import type { RuntimeTaskCenterMap } from './types'
 export const runtimeTaskCenter: RuntimeTaskCenterMap = {
     [RUNTIME_ACTIONS.START_BATCH_PROCESS]: startBatchProcess,
     [RUNTIME_ACTIONS.SET_BATCH_CONCURRENCY]: setBatchConcurrency,
+    [RUNTIME_ACTIONS.SET_BATCH_WINDOW_MODE]: setBatchWindowMode,
+    [RUNTIME_ACTIONS.SET_BATCH_WINDOW_COUNT]: setBatchWindowCount,
     [RUNTIME_ACTIONS.GET_BATCH_STATUS]: getBatchStatus,
     [RUNTIME_ACTIONS.GET_FULL_RESULTS]: getFullResults,
     [RUNTIME_ACTIONS.PAUSE_BATCH]: pauseBatch,

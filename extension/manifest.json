@@ -10,7 +10,8 @@
     "storage",
     "unlimitedStorage",
     "debugger",
-    "downloads"
+    "downloads",
+    "system.display"
   ],
   "host_permissions": [
     "http://localhost/*",

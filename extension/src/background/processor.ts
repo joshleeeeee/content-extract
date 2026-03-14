@@ -13,6 +13,7 @@ import type { BatchQueueItem } from './types'
 import { normalizeExportFormat, normalizeTaskType } from './types'
 import { sendTabMessage } from '../infra/chrome/tabClient'
 import { CONTENT_ACTIONS } from '../shared/contracts/content'
+import { createWindowPool, closeWindowPool, acquireWindow, releaseWindow } from '../infra/chrome/windowClient'
 
 const EXTRACT_TIMEOUT_DEFAULT_MS = 6 * 60_000
 const EXTRACT_TIMEOUT_LOCAL_IMAGE_MS = 12 * 60_000
@@ -72,13 +73,26 @@ export async function cancelActiveTasks() {
     await Promise.all(tabsToClose.map(async (tabId) => {
         try { await chrome.tabs.remove(tabId) } catch (_) { }
     }))
+
+    if (runtimeState.windowPool) {
+        await closeWindowPool(runtimeState.windowPool)
+        runtimeState.windowPool = null
+    }
 }
 
 export async function ensureProcessing() {
     if (runtimeState.isPaused) {
+        if (runtimeState.windowPool) {
+            await closeWindowPool(runtimeState.windowPool)
+            runtimeState.windowPool = null
+        }
         syncRuntimeState()
         await saveState()
         return
+    }
+
+    if (runtimeState.useWindowMode && !runtimeState.windowPool && runtimeState.BATCH_QUEUE.length > 0) {
+        runtimeState.windowPool = await createWindowPool(runtimeState.windowPoolSize)
     }
 
     let spawned = false
@@ -87,6 +101,11 @@ export async function ensureProcessing() {
         if (!next) break
         spawned = true
         void runBatchItem(next)
+    }
+
+    if (runtimeState.BATCH_QUEUE.length === 0 && runtimeState.activeTasks.size === 0 && runtimeState.windowPool) {
+        await closeWindowPool(runtimeState.windowPool)
+        runtimeState.windowPool = null
     }
 
     syncRuntimeState()
@@ -101,6 +120,7 @@ async function runBatchItem(item: BatchQueueItem) {
     const extractRequestId = `batch-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
     const forceForeground = shouldForceForegroundForTask(item)
     let tabId: number | null = null
+    let windowId: number | null = null
     let success = false
 
     item.status = 'processing'
@@ -131,8 +151,25 @@ async function runBatchItem(item: BatchQueueItem) {
 
     try {
         const isForeground = forceForeground || !!(item.options && item.options.foreground)
-        const tab = await chrome.tabs.create({ url: taskUrl, active: !!isForeground })
-        tabId = tab.id || null
+
+        if (runtimeState.useWindowMode && runtimeState.windowPool && !isForeground) {
+            windowId = acquireWindow(runtimeState.windowPool, taskUrl)
+
+            if (windowId) {
+                const tab = await chrome.tabs.create({
+                    url: taskUrl,
+                    active: true,
+                    windowId
+                })
+                tabId = tab.id || null
+            } else {
+                const tab = await chrome.tabs.create({ url: taskUrl, active: false })
+                tabId = tab.id || null
+            }
+        } else {
+            const tab = await chrome.tabs.create({ url: taskUrl, active: !!isForeground })
+            tabId = tab.id || null
+        }
 
         const task = runtimeState.activeTasks.get(taskUrl)
         if (task) task.tabId = tabId
@@ -276,6 +313,10 @@ async function runBatchItem(item: BatchQueueItem) {
     } finally {
         if (tabId) {
             try { await chrome.tabs.remove(tabId) } catch (_) { }
+        }
+
+        if (windowId && runtimeState.windowPool) {
+            releaseWindow(runtimeState.windowPool, windowId)
         }
 
         runtimeState.extractionRequestToUrl.delete(extractRequestId)

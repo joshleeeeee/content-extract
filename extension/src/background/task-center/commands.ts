@@ -72,6 +72,16 @@ export async function setBatchConcurrency(request: SetBatchConcurrencyRequest): 
     }
 }
 
+export async function setBatchWindowMode(request: { action: string; value: boolean }): Promise<{ success: boolean }> {
+    runtimeState.useWindowMode = request.value
+    return { success: true }
+}
+
+export async function setBatchWindowCount(request: { action: string; value: number }): Promise<{ success: boolean }> {
+    runtimeState.windowPoolSize = Math.max(1, Math.min(4, request.value))
+    return { success: true }
+}
+
 export async function pauseBatch(_request: PauseBatchRequest): Promise<PauseBatchResponse> {
     runtimeState.isPaused = true
     await cancelActiveTasks()

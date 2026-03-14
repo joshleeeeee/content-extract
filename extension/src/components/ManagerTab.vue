@@ -23,10 +23,39 @@ const latestPreviewLines = ref<string[]>([])
 const latestPreviewMeta = ref('')
 const latestPreviewLoading = ref(false)
 const showOverview = ref(localStorage.getItem('ode-manager-overview') === 'true')
+const compactMode = ref(localStorage.getItem('ode-manager-compact') === 'true')
+const filterStatus = ref<'all' | 'success' | 'failed'>('all')
+const filterFormat = ref<'all' | 'pdf' | 'csv' | 'json' | 'markdown'>('all')
+const filterDate = ref<'all' | 'today' | 'week'>('all')
+const filterPlatform = ref<string>('all')
 
 watch(showOverview, (value) => {
   localStorage.setItem('ode-manager-overview', String(value))
 })
+
+watch(compactMode, (value) => {
+  localStorage.setItem('ode-manager-compact', String(value))
+})
+
+const getPlatformFromUrl = (url: string): string => {
+  if (url.includes('feishu.cn') || url.includes('larksuite.com')) return 'feishu'
+  if (url.includes('zhipin.com')) return 'boss'
+  if (url.includes('jd.com') || url.includes('jd.hk')) return 'jd'
+  if (url.includes('taobao.com') || url.includes('tmall.com')) return 'taobao'
+  if (url.includes('douyin.com')) return 'douyin'
+  if (url.includes('xiaohongshu.com') || url.includes('xhslink.com')) return 'xiaohongshu'
+  if (url.includes('bilibili.com') || url.includes('b23.tv')) return 'bilibili'
+  return 'other'
+}
+
+const isWithinDateRange = (timestamp: number | undefined, range: 'all' | 'today' | 'week'): boolean => {
+  if (range === 'all' || !timestamp) return true
+  const now = Date.now()
+  const diff = now - timestamp
+  if (range === 'today') return diff < 24 * 60 * 60 * 1000
+  if (range === 'week') return diff < 7 * 24 * 60 * 60 * 1000
+  return true
+}
 
 const latestSuccessItem = computed<BatchItem | null>(() => {
   const sorted = [...batchStore.processedResults]
@@ -35,16 +64,85 @@ const latestSuccessItem = computed<BatchItem | null>(() => {
   return sorted[0] || null
 })
 
+const filteredResults = computed(() => {
+  let results = batchStore.processedResults
+  if (filterStatus.value !== 'all') {
+    results = results.filter(item => item.status === filterStatus.value)
+  }
+  if (filterFormat.value !== 'all') {
+    results = results.filter(item => item.format === filterFormat.value)
+  }
+  if (filterDate.value !== 'all') {
+    results = results.filter(item => isWithinDateRange(item.timestamp, filterDate.value))
+  }
+  if (filterPlatform.value !== 'all') {
+    results = results.filter(item => getPlatformFromUrl(item.url) === filterPlatform.value)
+  }
+  return results
+})
+
+const availablePlatforms = computed(() => {
+  const platforms = new Set<string>()
+  batchStore.processedResults.forEach(item => {
+    platforms.add(getPlatformFromUrl(item.url))
+  })
+  return Array.from(platforms).sort()
+})
+
+const platformNames: Record<string, string> = {
+  feishu: '飞书',
+  boss: 'BOSS',
+  jd: '京东',
+  taobao: '淘宝',
+  douyin: '抖音',
+  xiaohongshu: '小红书',
+  bilibili: 'B站',
+  other: '其他'
+}
+
+const formatDate = (timestamp: number | undefined): string => {
+  if (!timestamp) return ''
+  const now = Date.now()
+  const diff = now - timestamp
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  if (hours < 24) return `${hours}小时前`
+  if (days === 0) return '今天'
+  if (days === 1) return '昨天'
+  if (days < 7) return `${days}天前`
+
+  const date = new Date(timestamp)
+  return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
+const statusCounts = computed(() => ({
+  all: batchStore.processedResults.length,
+  success: batchStore.processedResults.filter(r => r.status === 'success').length,
+  failed: batchStore.processedResults.filter(r => r.status === 'failed').length
+}))
+
 const toggleSelectAll = (e: Event) => {
   const checked = (e.target as HTMLInputElement).checked
   if (checked) {
-    batchStore.processedResults.forEach(r => {
+    filteredResults.value.forEach(r => {
       if (r.status === 'success') selectedUrls.value.add(r.url)
     })
   } else {
     selectedUrls.value.clear()
   }
 }
+
+const isAllFilteredSuccessSelected = computed(() => {
+  const visibleSuccessUrls = filteredResults.value
+    .filter(item => item.status === 'success')
+    .map(item => item.url)
+
+  return visibleSuccessUrls.length > 0 && visibleSuccessUrls.every(url => selectedUrls.value.has(url))
+})
 
 const handleClear = () => {
   if (confirm('确定要清空所有已下载的历史记录吗？正在进行的任务也会停止。')) {
@@ -247,11 +345,69 @@ const getTaskTypeTag = (item: BatchItem) => {
 
 <template>
   <div class="flex flex-col h-full overflow-hidden">
-    <div class="mb-2 flex justify-end">
-      <button
-        @click="showOverview = !showOverview"
-        class="h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-500 hover:text-blue-600 hover:border-blue-300 transition-colors"
-      >{{ showOverview ? '收起概览' : '展开概览' }}</button>
+    <div class="mb-3 space-y-2">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex gap-1.5">
+          <button
+            v-for="status in [{ key: 'all', label: '全部' }, { key: 'success', label: '成功' }, { key: 'failed', label: '失败' }]"
+            :key="status.key"
+            @click="filterStatus = status.key as any"
+            :class="[
+              'h-7 px-2.5 rounded-lg text-[10px] font-bold transition-all',
+              filterStatus === status.key
+                ? 'bg-blue-600 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-500 hover:text-blue-600 border border-gray-200 dark:border-gray-700'
+            ]"
+          >{{ status.label }} <span v-if="status.key !== 'all'">({{ statusCounts[status.key as keyof typeof statusCounts] }})</span></button>
+        </div>
+        <div class="flex gap-1.5">
+          <button
+            @click="compactMode = !compactMode"
+            class="h-7 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-500 hover:text-blue-600 hover:border-blue-300 transition-colors"
+          >{{ compactMode ? '标准' : '紧凑' }}</button>
+          <button
+            @click="showOverview = !showOverview"
+            class="h-7 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-500 hover:text-blue-600 hover:border-blue-300 transition-colors"
+          >{{ showOverview ? '收起' : '概览' }}</button>
+        </div>
+      </div>
+
+      <div class="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
+        <button
+          v-for="date in [{ key: 'all', label: '全部' }, { key: 'today', label: '今天' }, { key: 'week', label: '本周' }]"
+          :key="date.key"
+          @click="filterDate = date.key as any"
+          :class="[
+            'h-6 px-2 rounded text-[9px] font-bold transition-all shrink-0',
+            filterDate === date.key
+              ? 'bg-emerald-600 text-white'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-emerald-600 border border-gray-200 dark:border-gray-700'
+          ]"
+        >{{ date.label }}</button>
+
+        <div class="w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
+        <button
+          @click="filterPlatform = 'all'"
+          :class="[
+            'h-6 px-2 rounded text-[9px] font-bold transition-all shrink-0',
+            filterPlatform === 'all'
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-purple-600 border border-gray-200 dark:border-gray-700'
+          ]"
+        >全部平台</button>
+        <button
+          v-for="platform in availablePlatforms"
+          :key="platform"
+          @click="filterPlatform = platform"
+          :class="[
+            'h-6 px-2 rounded text-[9px] font-bold transition-all shrink-0',
+            filterPlatform === platform
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-purple-600 border border-gray-200 dark:border-gray-700'
+          ]"
+        >{{ platformNames[platform] || platform }}</button>
+      </div>
     </div>
 
     <!-- Summary Header -->
@@ -329,7 +485,7 @@ const getTaskTypeTag = (item: BatchItem) => {
         <input 
           type="checkbox" 
           @change="toggleSelectAll" 
-          :checked="selectedUrls.size > 0 && selectedUrls.size === batchStore.processedResults.filter(r => r.status === 'success').length"
+          :checked="isAllFilteredSuccessSelected"
           class="w-4 h-4 rounded border-gray-300 text-blue-600"
         >
         <span class="text-xs font-bold text-gray-500">全选成品</span>
@@ -347,12 +503,17 @@ const getTaskTypeTag = (item: BatchItem) => {
         <span class="text-xs">正在加载下载列表...</span>
       </div>
 
-      <div v-if="!isListLoading && batchStore.processedResults.length === 0 && !batchStore.currentItem" class="h-40 flex flex-col items-center justify-center text-gray-400 gap-2 opacity-60 italic">
+      <div v-else-if="batchStore.processedResults.length === 0 && !batchStore.currentItem" class="h-40 flex flex-col items-center justify-center text-gray-400 gap-2 opacity-60 italic">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M19 11H5m14 0c1 0 2 1 2 2v6c0 1-1 2-2 2H5c-1 0-2-1-2-2v-6c0-1 1-2 2-2m14 0V9c0-1-1-2-2-2M5 11V9c0-1 1-2 2-2m10 0V5c0-1-1-2-2-2H9c-1 0-2 1-2 2v2m10 0H7"/></svg>
         <span class="text-xs">暂无下载记录</span>
       </div>
 
-      <div v-else class="space-y-2 pb-4">
+      <div v-else-if="filteredResults.length === 0 && !batchStore.currentItem" class="h-40 flex flex-col items-center justify-center text-gray-400 gap-2 opacity-60 italic">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M8 11h6"/></svg>
+        <span class="text-xs">当前筛选条件下暂无结果</span>
+      </div>
+
+      <div v-else class="pb-4" :class="compactMode ? 'space-y-1.5' : 'space-y-2'">
         <!-- Current Item (if any) -->
         <div v-if="batchStore.currentItem" class="p-3 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-900/40 rounded-xl flex items-center gap-3 animate-pulse">
            <div class="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin shrink-0"></div>
@@ -368,10 +529,13 @@ const getTaskTypeTag = (item: BatchItem) => {
         </div>
 
         <!-- History Results -->
-        <div 
-          v-for="item in [...batchStore.processedResults].reverse()" 
+        <div
+          v-for="item in [...filteredResults].reverse()"
           :key="item.url"
-          class="p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl flex items-center gap-3 hover:border-blue-100 dark:hover:border-blue-900 group"
+          :class="[
+            'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl flex items-center gap-3 hover:border-blue-100 dark:hover:border-blue-900 group',
+            compactMode ? 'p-2' : 'p-3'
+          ]"
         >
           <input 
             v-if="item.status === 'success'"
@@ -387,7 +551,8 @@ const getTaskTypeTag = (item: BatchItem) => {
 
           <div class="flex-1 min-w-0">
              <div class="flex items-center gap-1.5 mb-0.5">
-                 <span :class="[item.status === 'success' ? 'text-gray-700 dark:text-gray-200' : 'text-gray-400']" class="text-xs font-bold truncate flex-1 uppercase tracking-tight">{{ item.title }}</span>
+                 <span :class="[item.status === 'success' ? 'text-gray-700 dark:text-gray-200' : 'text-gray-400', compactMode ? 'text-[11px]' : 'text-xs']" class="font-bold truncate flex-1 uppercase tracking-tight">{{ item.title }}</span>
+                 <span v-if="item.timestamp" class="text-[9px] text-gray-400 shrink-0">{{ formatDate(item.timestamp) }}</span>
                  <span :class="getTaskTypeTag(item).className">{{ getTaskTypeTag(item).label }}</span>
                  <span v-if="item.format === 'pdf'" class="text-[9px] font-black text-red-500 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded uppercase border border-red-100 dark:border-red-800 shrink-0">PDF</span>
                  <span v-else-if="item.format === 'csv'" class="text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded uppercase border border-emerald-100 dark:border-emerald-800 shrink-0">CSV</span>
@@ -395,9 +560,9 @@ const getTaskTypeTag = (item: BatchItem) => {
                  <span v-else-if="item.format === 'markdown'" class="text-[9px] font-black text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded uppercase border border-blue-100 dark:border-blue-800 shrink-0">MD</span>
                  <span v-if="item.size" class="text-xs font-mono text-gray-400 shrink-0">{{ formatSize(item.size) }}</span>
               </div>
-             <div class="text-[11px] text-gray-400 truncate opacity-60">{{ item.url }}</div>
+             <div v-if="!compactMode" class="text-[11px] text-gray-400 truncate opacity-60">{{ item.url }}</div>
              <div v-if="item.status === 'failed' && item.error" class="text-[10px] text-red-400 mt-0.5 truncate" :title="item.error">❌ {{ item.error }}</div>
-             <div v-if="item.status === 'failed'" class="text-[10px] text-amber-500 mt-0.5 truncate">建议：{{ getFailureTip(item) }}</div>
+             <div v-if="item.status === 'failed' && !compactMode" class="text-[10px] text-amber-500 mt-0.5 truncate">建议：{{ getFailureTip(item) }}</div>
            </div>
 
           <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

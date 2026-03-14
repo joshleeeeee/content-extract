@@ -15,6 +15,9 @@ export interface OssConfig {
     folder: string
 }
 
+const DEFAULT_CLI_BRIDGE_HOST = import.meta.env.VITE_CONTENT_EXTRACT_CLI_HOST || '127.0.0.1'
+const DEFAULT_CLI_BRIDGE_PORT = Number(import.meta.env.VITE_CONTENT_EXTRACT_CLI_PORT || '17327')
+
 export const useSettingsStore = defineStore('settings', () => {
     // --- States ---
     const imageMode = ref(localStorage.getItem('feishu-copy-image-mode') || 'local')
@@ -32,6 +35,8 @@ export const useSettingsStore = defineStore('settings', () => {
     const socialMaxRounds = ref(Math.max(10, Math.min(400, parseInt(localStorage.getItem('feishu-copy-social-max-rounds') || '80'))))
     const batchWindowMode = ref(localStorage.getItem('feishu-copy-batch-window-mode') === 'true')
     const batchWindowCount = ref(Math.max(1, Math.min(4, parseInt(localStorage.getItem('feishu-copy-batch-window-count') || '2'))))
+    const cliBridgeHost = ref((localStorage.getItem('content-extract-cli-bridge-host') || DEFAULT_CLI_BRIDGE_HOST).trim() || DEFAULT_CLI_BRIDGE_HOST)
+    const cliBridgePort = ref(Number(localStorage.getItem('content-extract-cli-bridge-port') || String(DEFAULT_CLI_BRIDGE_PORT)))
 
     const ossConfig = ref<OssConfig>(JSON.parse(localStorage.getItem('feishu-copy-oss-config') || '{}'))
     if (!ossConfig.value.provider) {
@@ -48,6 +53,13 @@ export const useSettingsStore = defineStore('settings', () => {
     }
 
     // --- Watchers for Persistence ---
+    const syncCliBridgeConfig = (host: string, port: number) => {
+        void chrome.storage.local.set({
+            cliBridgeHost: host,
+            cliBridgePort: port
+        }).catch(() => {})
+    }
+
     watch(imageMode, (val) => localStorage.setItem('feishu-copy-image-mode', val))
     watch(foreground, (val) => localStorage.setItem('feishu-copy-foreground', String(val)))
     watch(mergeBatch, (val) => localStorage.setItem('feishu-copy-merge-batch', String(val)))
@@ -117,6 +129,24 @@ export const useSettingsStore = defineStore('settings', () => {
             value: normalized
         }).catch(() => {})
     }, { immediate: true })
+    watch(cliBridgeHost, (val) => {
+        const normalized = String(val || '').trim() || DEFAULT_CLI_BRIDGE_HOST
+        if (normalized !== val) {
+            cliBridgeHost.value = normalized
+            return
+        }
+        localStorage.setItem('content-extract-cli-bridge-host', normalized)
+        syncCliBridgeConfig(normalized, cliBridgePort.value)
+    }, { immediate: true })
+    watch(cliBridgePort, (val) => {
+        const normalized = Math.max(1, Math.min(65535, Number(val) || DEFAULT_CLI_BRIDGE_PORT))
+        if (normalized !== val) {
+            cliBridgePort.value = normalized
+            return
+        }
+        localStorage.setItem('content-extract-cli-bridge-port', String(normalized))
+        syncCliBridgeConfig(cliBridgeHost.value, normalized)
+    }, { immediate: true })
     const syncBatchConcurrencyToBackground = (val: number) => {
         const normalized = Math.max(1, Math.min(3, val))
         void sendRuntimeMessage({
@@ -162,6 +192,8 @@ export const useSettingsStore = defineStore('settings', () => {
         socialMaxRounds,
         batchWindowMode,
         batchWindowCount,
+        cliBridgeHost,
+        cliBridgePort,
         ossConfig,
         setMergeBatchContextAware
     }

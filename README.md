@@ -61,6 +61,35 @@
 3. 打开扩展管理页并开启 **"开发者模式"**。
 4. 点击 **"加载解压的扩展程序"**，选择 `extension/dist` 目录。
 
+### CLI（实验性，Agent-Friendly）
+项目现在内置了一个本地 `CLI + daemon` 原型，用于让 LLM Agent 或脚本以结构化方式编排扩展任务。
+
+1. 一键注册 `cex` 命令：
+   - `./scripts/setup-cex.sh`
+   - 如果提示已更新 PATH，执行：`source ~/.zshrc`（或对应 shell rc 文件）
+   - 卸载时可执行：`./scripts/uninstall-cex.sh`
+2. 启动本地 daemon：
+   - `cex start`
+   - 如需自定义目录：`cex start --home "$CE_HOME" --pretty`
+3. 查看 daemon / 扩展状态：
+   - `cex status --pretty`
+4. 投递链接抓取：
+   - `cex submit "https://example.com/doc" --wait`
+   - 评论类任务可显式指定：`cex submit "<商品或作品链接>" --task-type review --format csv`
+5. 查看任务与结果：
+   - `cex jobs list --pretty`
+   - `cex results list --pretty`
+   - `cex results get <job_id> --inline --pretty`
+6. 获取原始内容 / 下载结果：
+   - `cex fetch <job_id> --field content --raw`
+   - `cex download <job_id> --output ./output-file`
+
+> 说明：
+> - CLI 默认输出稳定 JSON，便于 Agent / shell 脚本消费。
+> - 扩展通过本地 bridge 轮询 daemon，因此浏览器打开且扩展在线时，CLI 提交的任务会自动进入扩展任务中心。
+> - 默认本地工作目录为 `~/.content-extract-cli`，可通过 `--home` 或环境变量 `CONTENT_EXTRACT_CLI_HOME` 覆盖。
+> - `setup-cex.sh` 默认把命令安装到 `~/.local/bin/cex`，并自动补 PATH。
+> - 如果不想安装，也可以临时使用 `node cli/bin/cex.mjs ...`。
 
 
 ### 使用指南

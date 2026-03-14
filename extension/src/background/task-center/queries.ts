@@ -13,6 +13,7 @@ import type {
 
 export async function getBatchStatus(_request: GetBatchStatusRequest): Promise<GetBatchStatusResponse> {
     const lightResults = runtimeState.processedResults.map((item) => toResultSummaryItem(item))
+    const activeItems = Array.from(runtimeState.activeTasks.values()).map((entry) => entry.item)
 
     return {
         isProcessing: runtimeState.isProcessing,
@@ -22,11 +23,15 @@ export async function getBatchStatus(_request: GetBatchStatusRequest): Promise<G
         currentItem: runtimeState.currentItem,
         activeCount: runtimeState.activeTasks.size,
         configuredConcurrency: getConfiguredConcurrency(),
-        effectiveConcurrency: getEffectiveConcurrency()
+        effectiveConcurrency: getEffectiveConcurrency(),
+        queueItems: [...runtimeState.BATCH_QUEUE],
+        activeItems
     }
 }
 
 export async function getFullResults(request: GetFullResultsRequest): Promise<GetFullResultsResponse> {
-    const fullItems = runtimeState.processedResults.filter(r => request.urls.includes(r.url))
+    const urls = Array.isArray(request.urls) ? request.urls : []
+    const jobIds = Array.isArray(request.jobIds) ? request.jobIds : []
+    const fullItems = runtimeState.processedResults.filter(r => jobIds.includes(r.jobId) || urls.includes(r.url))
     return { success: true, data: fullItems }
 }

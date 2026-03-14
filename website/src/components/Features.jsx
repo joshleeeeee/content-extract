@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Download, Layers, ShieldCheck, Image, Code2, Zap, Layout, ListChecks, ArrowRightLeft, Database } from 'lucide-react';
+import { Download, Layers, ShieldCheck, Image, Code2, Zap, ListChecks, ArrowRightLeft } from 'lucide-react';
 import { content } from '../data/content';
 
 const iconMap = {

@@ -41,6 +41,7 @@ export interface BatchScanItem {
 }
 
 export interface BatchQueueItem extends BatchProgressState {
+    jobId: string
     url: string
     title: string
     taskType: TaskType
@@ -50,6 +51,7 @@ export interface BatchQueueItem extends BatchProgressState {
 }
 
 interface BatchResultBase extends BatchProgressState {
+    jobId: string
     url: string
     title: string
     taskType: TaskType
@@ -100,6 +102,7 @@ export type BatchResultItem = BatchSuccessResultItem | BatchFailedResultItem
 export type BatchItem = BatchQueueItem | BatchResultItem
 
 export interface BatchResultSummaryItem {
+    jobId: string
     url: string
     title: string
     taskType: TaskType
@@ -111,6 +114,7 @@ export interface BatchResultSummaryItem {
 }
 
 export interface BatchTaskInput {
+    jobId?: string
     url: string
     title: string
     taskType: TaskType
@@ -141,6 +145,17 @@ export function normalizeExportFormat(value: unknown, taskType: TaskType = 'doc'
 
 export function normalizeQueueStatus(value: unknown): BatchQueueStatus {
     return value === 'processing' ? 'processing' : 'pending'
+}
+
+export function normalizeJobId(value: unknown, fallbackUrl: string): string {
+    if (typeof value === 'string' && value.trim()) {
+        return value.trim()
+    }
+    return fallbackUrl
+}
+
+export function getBatchItemKey(item: { jobId?: string; url: string }): string {
+    return normalizeJobId(item.jobId, item.url)
 }
 
 export function isBatchResultItem(item: BatchItem): item is BatchResultItem {
@@ -200,8 +215,10 @@ export function normalizeStoredQueueItem(value: unknown): BatchQueueItem | null 
 
     const optionsRecord = asRecord(record.options) as BatchTaskOptions | null
     const taskType = normalizeTaskType(record.taskType ?? optionsRecord?.taskType)
+    const jobId = normalizeJobId(record.jobId, url)
 
     return {
+        jobId,
         url,
         title,
         taskType,
@@ -252,7 +269,9 @@ export function normalizeStoredResultItem(value: unknown): BatchResultItem | nul
 
     const optionsRecord = asRecord(record.options) as BatchTaskOptions | null
     const taskType = normalizeTaskType(record.taskType ?? optionsRecord?.taskType)
+    const jobId = normalizeJobId(record.jobId, url)
     const base = {
+        jobId,
         url,
         title,
         taskType,
@@ -328,6 +347,7 @@ export function normalizeStoredResultItem(value: unknown): BatchResultItem | nul
 
 export function toResultSummaryItem(item: BatchResultItem): BatchResultSummaryItem {
     return {
+        jobId: item.jobId,
         url: item.url,
         title: item.title,
         taskType: item.taskType,

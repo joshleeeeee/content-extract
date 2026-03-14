@@ -6,7 +6,7 @@ import { RUNTIME_ACTIONS } from '../shared/contracts/runtime'
 import { formatSize, useBatchExport } from '../application/usecases/export/useBatchExport'
 
 const batchStore = useBatchStore()
-const selectedUrls = ref<Set<string>>(new Set())
+const selectedIds = ref<Set<string>>(new Set())
 
 const {
   volumeSizeMb,
@@ -17,7 +17,7 @@ const {
   fetchSingleResult,
   handleDownloadZip,
   handleSingleDownload
-} = useBatchExport({ batchStore, selectedUrls })
+} = useBatchExport({ batchStore, selectedIds })
 
 const latestPreviewLines = ref<string[]>([])
 const latestPreviewMeta = ref('')
@@ -100,6 +100,8 @@ const platformNames: Record<string, string> = {
   other: '其他'
 }
 
+const getItemKey = (item: { jobId?: string; url: string }) => item.jobId || item.url
+
 const formatDate = (timestamp: number | undefined): string => {
   if (!timestamp) return ''
   const now = Date.now()
@@ -129,48 +131,49 @@ const toggleSelectAll = (e: Event) => {
   const checked = (e.target as HTMLInputElement).checked
   if (checked) {
     filteredResults.value.forEach(r => {
-      if (r.status === 'success') selectedUrls.value.add(r.url)
+      if (r.status === 'success') selectedIds.value.add(getItemKey(r))
     })
   } else {
-    selectedUrls.value.clear()
+    selectedIds.value.clear()
   }
 }
 
 const isAllFilteredSuccessSelected = computed(() => {
-  const visibleSuccessUrls = filteredResults.value
+  const visibleSuccessKeys = filteredResults.value
     .filter(item => item.status === 'success')
-    .map(item => item.url)
+    .map(item => getItemKey(item))
 
-  return visibleSuccessUrls.length > 0 && visibleSuccessUrls.every(url => selectedUrls.value.has(url))
+  return visibleSuccessKeys.length > 0 && visibleSuccessKeys.every(key => selectedIds.value.has(key))
 })
 
 const handleClear = () => {
   if (confirm('确定要清空所有已下载的历史记录吗？正在进行的任务也会停止。')) {
     batchStore.clearResults()
-    selectedUrls.value.clear()
+    selectedIds.value.clear()
   }
 }
 
-const deleteItem = (url: string) => {
-  void sendRuntimeMessage({ action: RUNTIME_ACTIONS.DELETE_BATCH_ITEM, url })
+const deleteItem = (item: BatchItem) => {
+  const taskKey = getItemKey(item)
+  void sendRuntimeMessage({ action: RUNTIME_ACTIONS.DELETE_BATCH_ITEM, url: item.url, jobId: item.jobId })
     .then(() => {
       batchStore.updateStatus()
-      selectedUrls.value.delete(url)
+      selectedIds.value.delete(taskKey)
     })
     .catch(() => {
       // ignore runtime wake-up failures
     })
 }
 
-const retryItem = (url: string) => {
-  batchStore.retryItem(url)
+const retryItem = (item: BatchItem) => {
+  batchStore.retryItem(item)
 }
 
 const retryAllFailed = () => {
   batchStore.retryAllFailed()
 }
 
-const isRetryingItem = (url: string) => batchStore.retryingUrls.has(url)
+const isRetryingItem = (item: BatchItem) => batchStore.retryingKeys.has(getItemKey(item))
 
 const failedCount = computed(() => batchStore.processedResults.filter(r => r.status === 'failed').length)
 const isListLoading = computed(() =>
@@ -290,14 +293,14 @@ const extractPreviewFromData = (data: any) => {
   }
 }
 
-watch(() => latestSuccessItem.value?.url, async (url) => {
+watch(() => latestSuccessItem.value ? getItemKey(latestSuccessItem.value) : '', async (identifier) => {
   latestPreviewLines.value = []
   latestPreviewMeta.value = ''
-  if (!url) return
+  if (!identifier) return
 
   latestPreviewLoading.value = true
   try {
-    const data = await fetchSingleResult(url)
+    const data = await fetchSingleResult(identifier)
     if (data?.taskType === 'review' && (data?.format === 'csv' || data?.format === 'json')) {
       extractPreviewFromData(data)
     }
@@ -445,7 +448,7 @@ const getTaskTypeTag = (item: BatchItem) => {
     <div class="flex gap-2 mb-4">
       <button 
         @click="handleDownloadZip"
-        :disabled="selectedUrls.size === 0 || isDownloading"
+        :disabled="selectedIds.size === 0 || isDownloading"
         class="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 disabled:opacity-40 transition-all shadow-lg shadow-blue-500/10"
       >
         <template v-if="isDownloading">
@@ -454,7 +457,7 @@ const getTaskTypeTag = (item: BatchItem) => {
         </template>
         <template v-else>
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          <span>导出已选 ({{ selectedUrls.size }})<template v-if="volumeCount > 1"> · {{ volumeCount }} 卷</template></span>
+          <span>导出已选 ({{ selectedIds.size }})<template v-if="volumeCount > 1"> · {{ volumeCount }} 卷</template></span>
         </template>
       </button>
 
@@ -531,7 +534,7 @@ const getTaskTypeTag = (item: BatchItem) => {
         <!-- History Results -->
         <div
           v-for="item in [...filteredResults].reverse()"
-          :key="item.url"
+          :key="item.jobId"
           :class="[
             'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl flex items-center gap-3 hover:border-blue-100 dark:hover:border-blue-900 group',
             compactMode ? 'p-2' : 'p-3'
@@ -540,8 +543,8 @@ const getTaskTypeTag = (item: BatchItem) => {
           <input 
             v-if="item.status === 'success'"
             type="checkbox" 
-            :checked="selectedUrls.has(item.url)"
-            @change="selectedUrls.has(item.url) ? selectedUrls.delete(item.url) : selectedUrls.add(item.url)"
+            :checked="selectedIds.has(getItemKey(item))"
+            @change="selectedIds.has(getItemKey(item)) ? selectedIds.delete(getItemKey(item)) : selectedIds.add(getItemKey(item))"
             class="w-4 h-4 rounded border-gray-300 text-blue-600"
           >
           <div v-else class="w-4 h-4 flex items-center justify-center shrink-0">
@@ -571,18 +574,18 @@ const getTaskTypeTag = (item: BatchItem) => {
             </button>
             <button
               v-if="item.status === 'failed'"
-              @click="retryItem(item.url)"
-              :disabled="isRetryingItem(item.url)"
+              @click="retryItem(item)"
+              :disabled="isRetryingItem(item)"
               class="p-1.5 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg text-gray-400 hover:text-amber-600 disabled:opacity-60"
-              :title="isRetryingItem(item.url) ? '重试中' : '重试'"
+              :title="isRetryingItem(item) ? '重试中' : '重试'"
             >
-               <div v-if="isRetryingItem(item.url)" class="w-3.5 h-3.5 border-2 border-amber-400/40 border-t-amber-500 rounded-full animate-spin"></div>
+               <div v-if="isRetryingItem(item)" class="w-3.5 h-3.5 border-2 border-amber-400/40 border-t-amber-500 rounded-full animate-spin"></div>
                <svg v-else xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
             </button>
             <button @click="openUrl(item.url)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-400 hover:text-blue-500" title="打开链接">
                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </button>
-            <button @click="deleteItem(item.url)" class="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-gray-400 hover:text-red-500" title="删除记录">
+            <button @click="deleteItem(item)" class="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-gray-400 hover:text-red-500" title="删除记录">
                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
             </button>
           </div>

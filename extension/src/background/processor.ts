@@ -10,7 +10,7 @@ import { runtimeState } from './state'
 import { saveState } from './storage'
 import { waitForTabLoad } from './tabUtils'
 import type { BatchQueueItem } from './types'
-import { normalizeExportFormat, normalizeTaskType } from './types'
+import { getBatchItemKey, normalizeExportFormat, normalizeTaskType } from './types'
 import { sendTabMessage } from '../infra/chrome/tabClient'
 import { CONTENT_ACTIONS } from '../shared/contracts/content'
 import { createWindowPool, closeWindowPool, acquireWindow, releaseWindow } from '../infra/chrome/windowClient'
@@ -65,8 +65,8 @@ async function sendExtractMessage(tabId: number, payload: any, timeoutMs: number
 
 export async function cancelActiveTasks() {
     const tabsToClose: number[] = []
-    for (const [url, task] of runtimeState.activeTasks.entries()) {
-        runtimeState.cancelledTaskUrls.add(url)
+    for (const [taskKey, task] of runtimeState.activeTasks.entries()) {
+        runtimeState.cancelledTaskKeys.add(taskKey)
         if (task.tabId) tabsToClose.push(task.tabId)
     }
 
@@ -116,6 +116,7 @@ export async function ensureProcessing() {
 
 async function runBatchItem(item: BatchQueueItem) {
     const taskUrl = item.url
+    const taskKey = getBatchItemKey(item)
     const taskType = normalizeTaskType(item.taskType || item.options?.taskType)
     const extractRequestId = `batch-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
     const forceForeground = shouldForceForegroundForTask(item)
@@ -133,13 +134,13 @@ async function runBatchItem(item: BatchQueueItem) {
         item.strategyHint = '已强制前台运行（评论抓取）'
     }
 
-    runtimeState.activeTasks.set(taskUrl, {
+    runtimeState.activeTasks.set(taskKey, {
         item,
         tabId: null,
         startedAt: Date.now()
     })
-    runtimeState.extractionRequestToUrl.set(extractRequestId, taskUrl)
-    const taskSnapshot = runtimeState.activeTasks.get(taskUrl)
+    runtimeState.extractionRequestToTaskKey.set(extractRequestId, taskKey)
+    const taskSnapshot = runtimeState.activeTasks.get(taskKey)
     if (taskSnapshot) {
         taskSnapshot.item.options = {
             ...(taskSnapshot.item.options || {}),
@@ -153,7 +154,7 @@ async function runBatchItem(item: BatchQueueItem) {
         const isForeground = forceForeground || !!(item.options && item.options.foreground)
 
         if (runtimeState.useWindowMode && runtimeState.windowPool && !isForeground) {
-            windowId = acquireWindow(runtimeState.windowPool, taskUrl)
+            windowId = acquireWindow(runtimeState.windowPool, taskKey)
 
             if (windowId) {
                 const tab = await chrome.tabs.create({
@@ -171,15 +172,15 @@ async function runBatchItem(item: BatchQueueItem) {
             tabId = tab.id || null
         }
 
-        const task = runtimeState.activeTasks.get(taskUrl)
+        const task = runtimeState.activeTasks.get(taskKey)
         if (task) task.tabId = tabId
         syncRuntimeState()
 
         if (!tabId) throw new Error('Tab create failed')
-        if (isTaskCancelled(taskUrl)) throw new Error('Cancelled')
+        if (isTaskCancelled(taskKey)) throw new Error('Cancelled')
 
         await waitForTabLoad(tabId)
-        if (isTaskCancelled(taskUrl)) throw new Error('Cancelled')
+        if (isTaskCancelled(taskKey)) throw new Error('Cancelled')
 
         const totalTasks = runtimeState.BATCH_QUEUE.length + runtimeState.activeTasks.size + runtimeState.processedResults.length
         const currentIndex = runtimeState.processedResults.length + runtimeState.activeTasks.size
@@ -193,7 +194,7 @@ async function runBatchItem(item: BatchQueueItem) {
         }).catch(() => {})
 
         await new Promise(r => setTimeout(r, 4000))
-        if (isTaskCancelled(taskUrl)) throw new Error('Cancelled')
+        if (isTaskCancelled(taskKey)) throw new Error('Cancelled')
 
         const isPdfFormat = item.format === 'pdf'
         const isLocalArchiveMode = !isPdfFormat && taskType === 'doc' && item.options?.imageMode === 'local'
@@ -204,7 +205,7 @@ async function runBatchItem(item: BatchQueueItem) {
         let lastExtractError: any = null
         for (let i = 0; i < 3; i++) {
             try {
-                if (isTaskCancelled(taskUrl)) break
+                if (isTaskCancelled(taskKey)) break
                 console.log(`[Batch] Extract start (${i + 1}/3): ${taskUrl}`)
                 response = await sendExtractMessage(tabId, {
                     action: isLocalArchiveMode ? CONTENT_ACTIONS.EXTRACT_LOCAL_ARCHIVE : CONTENT_ACTIONS.EXTRACT_CONTENT,
@@ -225,7 +226,7 @@ async function runBatchItem(item: BatchQueueItem) {
             }
         }
 
-        if (isTaskCancelled(taskUrl)) throw new Error('Cancelled')
+        if (isTaskCancelled(taskKey)) throw new Error('Cancelled')
         if (!response || !response.success) {
             throw new Error(response ? response.error : (lastExtractError?.message || 'Extraction failed'))
         }
@@ -260,6 +261,7 @@ async function runBatchItem(item: BatchQueueItem) {
             }
 
             runtimeState.processedResults.push({
+                jobId: item.jobId,
                 url: taskUrl,
                 title: normalizedTitle,
                 taskType,
@@ -276,6 +278,7 @@ async function runBatchItem(item: BatchQueueItem) {
             }
 
             runtimeState.processedResults.push({
+                jobId: item.jobId,
                 url: taskUrl,
                 title: normalizedTitle,
                 taskType,
@@ -293,6 +296,7 @@ async function runBatchItem(item: BatchQueueItem) {
                 (response.images ? response.images.reduce((sum: number, img: any) => sum + (img.base64 ? img.base64.length * 0.75 : 0), 0) : 0))
 
             runtimeState.processedResults.push({
+                jobId: item.jobId,
                 url: taskUrl,
                 title: normalizedTitle,
                 taskType,
@@ -308,8 +312,9 @@ async function runBatchItem(item: BatchQueueItem) {
 
         success = true
     } catch (err: any) {
-        if (err.message !== 'Cancelled' && !runtimeState.cancelledTaskUrls.has(taskUrl)) {
+        if (err.message !== 'Cancelled' && !runtimeState.cancelledTaskKeys.has(taskKey)) {
             runtimeState.processedResults.push({
+                jobId: item.jobId,
                 url: taskUrl,
                 title: item.title || 'Failed Item',
                 taskType,
@@ -333,9 +338,9 @@ async function runBatchItem(item: BatchQueueItem) {
             releaseWindow(runtimeState.windowPool, windowId)
         }
 
-        runtimeState.extractionRequestToUrl.delete(extractRequestId)
-        runtimeState.activeTasks.delete(taskUrl)
-        runtimeState.cancelledTaskUrls.delete(taskUrl)
+        runtimeState.extractionRequestToTaskKey.delete(extractRequestId)
+        runtimeState.activeTasks.delete(taskKey)
+        runtimeState.cancelledTaskKeys.delete(taskKey)
         recordTaskOutcome(success)
         syncRuntimeState()
         await saveState()

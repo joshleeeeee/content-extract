@@ -31,7 +31,7 @@ interface BatchStoreLike {
 
 interface UseBatchExportParams {
     batchStore: BatchStoreLike
-    selectedUrls: Ref<Set<string>>
+    selectedIds: Ref<Set<string>>
 }
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -240,18 +240,20 @@ export const formatSize = (bytes: number = 0) => {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
-export function useBatchExport({ batchStore, selectedUrls }: UseBatchExportParams) {
+const getResultIdentifier = (item: { jobId?: string; url: string }) => item.jobId || item.url
+
+export function useBatchExport({ batchStore, selectedIds }: UseBatchExportParams) {
     const isDownloading = ref(false)
     const downloadProgress = ref('')
 
     const selectedSuccessItems = computed(() => {
-        return batchStore.processedResults.filter(r => selectedUrls.value.has(r.url) && r.status === 'success')
+        return batchStore.processedResults.filter(r => selectedIds.value.has(getResultIdentifier(r)) && r.status === 'success')
     })
 
     const totalSelectedSize = computed(() => {
         let total = 0
         batchStore.processedResults.forEach((item) => {
-            if (selectedUrls.value.has(item.url)) {
+            if (selectedIds.value.has(getResultIdentifier(item))) {
                 total += item.size || 0
             }
         })
@@ -261,14 +263,15 @@ export function useBatchExport({ batchStore, selectedUrls }: UseBatchExportParam
     const volumes = computed(() => createVolumes(selectedSuccessItems.value))
     const volumeCount = computed(() => volumes.value.length)
 
-    const fetchSingleResult = async (url: string): Promise<BatchResultItem | null> => {
+    const fetchSingleResult = async (identifier: string): Promise<BatchResultItem | null> => {
         try {
             const response = await sendRuntimeMessage<GetFullResultsResponse>({
                 action: RUNTIME_ACTIONS.GET_FULL_RESULTS,
-                urls: [url]
+                jobIds: [identifier],
+                urls: [identifier]
             })
             if (response?.success && Array.isArray(response.data) && response.data.length > 0) {
-                return response.data[0]
+                return response.data.find((item) => item.jobId === identifier || item.url === identifier) || response.data[0]
             }
             return null
         } catch (_) {
@@ -281,7 +284,7 @@ export function useBatchExport({ batchStore, selectedUrls }: UseBatchExportParam
             const source = items[i]
             downloadProgress.value = `正在导出评论文件 ${i + 1}/${items.length}...`
 
-            const item = await fetchSingleResult(source.url)
+            const item = await fetchSingleResult(getResultIdentifier(source))
             if (!item || item.status !== 'success') continue
 
             const safeTitle = getSafeTitle(item)
@@ -334,7 +337,7 @@ export function useBatchExport({ batchStore, selectedUrls }: UseBatchExportParam
                         ? `卷${vi + 1}/${volumeItems.length} · 第 ${totalIndex}/${totalItems} 个`
                         : `第 ${fi + 1}/${volume.length} 个...`
 
-                    const item = await fetchSingleResult(volume[fi].url)
+                    const item = await fetchSingleResult(getResultIdentifier(volume[fi]))
                     if (!item || item.status !== 'success') continue
 
                     const safeTitle = getSafeTitle(item)
@@ -394,7 +397,7 @@ export function useBatchExport({ batchStore, selectedUrls }: UseBatchExportParam
     }
 
     const handleSingleDownload = async (item: BatchResultSummaryItem) => {
-        const data = await fetchSingleResult(item.url)
+        const data = await fetchSingleResult(getResultIdentifier(item))
         if (!data || data.status !== 'success') return
 
         const safeTitle = getSafeTitle(data)

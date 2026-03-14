@@ -10,7 +10,7 @@ import {
 } from '../runtime'
 import { runtimeState } from '../state'
 import { removeStorageKeys, saveState } from '../storage'
-import { normalizeExportFormat, normalizeTaskType, type BatchQueueItem } from '../types'
+import { getBatchItemKey, normalizeExportFormat, normalizeJobId, normalizeTaskType, type BatchQueueItem } from '../types'
 import type {
     ClearBatchResultsRequest,
     ClearBatchResultsResponse,
@@ -28,9 +28,19 @@ import type {
     RetryBatchItemResponse,
     SetBatchConcurrencyRequest,
     SetBatchConcurrencyResponse,
+    SetBatchWindowCountRequest,
+    SetBatchWindowCountResponse,
+    SetBatchWindowModeRequest,
+    SetBatchWindowModeResponse,
     StartBatchProcessRequest,
     StartBatchProcessResponse
 } from '../../shared/contracts/runtime'
+
+const matchesTaskRequest = (item: { jobId: string; url: string }, request: { jobId?: string; url?: string }) => {
+    if (request.jobId) return item.jobId === request.jobId
+    if (request.url) return item.url === request.url
+    return false
+}
 
 export async function startBatchProcess(request: StartBatchProcessRequest): Promise<StartBatchProcessResponse> {
     const { items, format, options } = request
@@ -41,11 +51,14 @@ export async function startBatchProcess(request: StartBatchProcessRequest): Prom
     updateConfiguredConcurrencyFromOptions(options)
 
     items.forEach((item) => {
-        const isInQueue = runtimeState.BATCH_QUEUE.some(q => q.url === item.url)
-        const isCurrent = runtimeState.activeTasks.has(item.url)
+        const jobId = normalizeJobId(item.jobId, item.url)
+        const taskKey = getBatchItemKey({ jobId, url: item.url })
+        const isInQueue = runtimeState.BATCH_QUEUE.some(q => getBatchItemKey(q) === taskKey)
+        const isCurrent = runtimeState.activeTasks.has(taskKey)
         if (!isInQueue && !isCurrent) {
             const taskType = normalizeTaskType(item.taskType ?? options?.taskType)
             const queueItem: BatchQueueItem = {
+                jobId,
                 url: item.url,
                 title: item.title,
                 taskType,
@@ -72,12 +85,12 @@ export async function setBatchConcurrency(request: SetBatchConcurrencyRequest): 
     }
 }
 
-export async function setBatchWindowMode(request: { action: string; value: boolean }): Promise<{ success: boolean }> {
+export async function setBatchWindowMode(request: SetBatchWindowModeRequest): Promise<SetBatchWindowModeResponse> {
     runtimeState.useWindowMode = request.value
     return { success: true }
 }
 
-export async function setBatchWindowCount(request: { action: string; value: number }): Promise<{ success: boolean }> {
+export async function setBatchWindowCount(request: SetBatchWindowCountRequest): Promise<SetBatchWindowCountResponse> {
     runtimeState.windowPoolSize = Math.max(1, Math.min(4, request.value))
     return { success: true }
 }
@@ -103,22 +116,26 @@ export async function clearBatchResults(_request: ClearBatchResultsRequest): Pro
     runtimeState.BATCH_QUEUE = []
     runtimeState.isPaused = false
     runtimeState.activeTasks.clear()
-    runtimeState.cancelledTaskUrls.clear()
+    runtimeState.cancelledTaskKeys.clear()
     syncRuntimeState()
     await saveState()
     return { success: true }
 }
 
 export async function deleteBatchItem(request: DeleteBatchItemRequest): Promise<DeleteBatchItemResponse> {
-    const { url } = request
-    const targets = runtimeState.processedResults.filter(item => item.url === url)
-    await removeStorageKeys(collectArchiveStorageKeys(targets))
-    runtimeState.processedResults = runtimeState.processedResults.filter(item => item.url !== url)
-    runtimeState.BATCH_QUEUE = runtimeState.BATCH_QUEUE.filter(item => item.url !== url)
+    if (!request.jobId && !request.url) {
+        return { success: false, error: 'Missing jobId or url' }
+    }
 
-    const running = runtimeState.activeTasks.get(url)
+    const taskKey = request.jobId || request.url || ''
+    const targets = runtimeState.processedResults.filter(item => matchesTaskRequest(item, request))
+    await removeStorageKeys(collectArchiveStorageKeys(targets))
+    runtimeState.processedResults = runtimeState.processedResults.filter(item => !matchesTaskRequest(item, request))
+    runtimeState.BATCH_QUEUE = runtimeState.BATCH_QUEUE.filter(item => !matchesTaskRequest(item, request))
+
+    const running = runtimeState.activeTasks.get(taskKey)
     if (running) {
-        runtimeState.cancelledTaskUrls.add(url)
+        runtimeState.cancelledTaskKeys.add(taskKey)
         if (running.tabId) {
             try { await chrome.tabs.remove(running.tabId) } catch (_) { }
         }
@@ -130,15 +147,19 @@ export async function deleteBatchItem(request: DeleteBatchItemRequest): Promise<
 }
 
 export async function retryBatchItem(request: RetryBatchItemRequest): Promise<RetryBatchItemResponse> {
-    const { url } = request
-    const failedItem = runtimeState.processedResults.find(r => r.url === url && r.status === 'failed')
+    if (!request.jobId && !request.url) {
+        return { success: false, error: 'Missing jobId or url' }
+    }
+
+    const failedItem = runtimeState.processedResults.find(r => matchesTaskRequest(r, request) && r.status === 'failed')
     if (!failedItem) {
         return { success: false, error: 'Item not found or not failed' }
     }
 
-    runtimeState.processedResults = runtimeState.processedResults.filter(r => r.url !== url)
+    runtimeState.processedResults = runtimeState.processedResults.filter(r => !matchesTaskRequest(r, request))
     const taskType = normalizeTaskType(failedItem.taskType || failedItem.options?.taskType)
     runtimeState.BATCH_QUEUE.push({
+        jobId: failedItem.jobId,
         url: failedItem.url,
         title: failedItem.title,
         taskType,
@@ -159,6 +180,7 @@ export async function retryAllFailed(_request: RetryAllFailedRequest): Promise<R
         failedItems.forEach((item) => {
             const taskType = normalizeTaskType(item.taskType || item.options?.taskType)
             runtimeState.BATCH_QUEUE.push({
+                jobId: item.jobId,
                 url: item.url,
                 title: item.title,
                 taskType,

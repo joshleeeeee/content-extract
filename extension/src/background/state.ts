@@ -16,8 +16,8 @@ export interface BatchRuntimeState {
     currentTabId: number | null
     isReady: boolean
     activeTasks: Map<string, ActiveTaskEntry>
-    cancelledTaskUrls: Set<string>
-    extractionRequestToUrl: Map<string, string>
+    cancelledTaskKeys: Set<string>
+    extractionRequestToTaskKey: Map<string, string>
     lastProgressPersistAt: number
     windowPool: WindowPool | null
     useWindowMode: boolean
@@ -33,8 +33,8 @@ export const runtimeState: BatchRuntimeState = {
     currentTabId: null,
     isReady: false,
     activeTasks: new Map(),
-    cancelledTaskUrls: new Set(),
-    extractionRequestToUrl: new Map(),
+    cancelledTaskKeys: new Set(),
+    extractionRequestToTaskKey: new Map(),
     lastProgressPersistAt: 0,
     windowPool: null,
     useWindowMode: false,

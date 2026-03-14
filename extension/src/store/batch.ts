@@ -32,7 +32,7 @@ export const useBatchStore = defineStore('batch', () => {
     const isPausing = ref(false)
     const isResuming = ref(false)
     const isRetryingAll = ref(false)
-    const retryingUrls = ref<Set<string>>(new Set())
+    const retryingKeys = ref<Set<string>>(new Set())
 
     const updateStatus = async () => {
         isUpdatingStatus.value = true
@@ -108,17 +108,20 @@ export const useBatchStore = defineStore('batch', () => {
         await updateStatus()
     }
 
-    const retryItem = async (url: string) => {
-        const next = new Set(retryingUrls.value)
-        next.add(url)
-        retryingUrls.value = next
+    const retryItem = async (target: { jobId?: string; url: string } | string) => {
+        const url = typeof target === 'string' ? target : target.url
+        const jobId = typeof target === 'string' ? undefined : target.jobId
+        const taskKey = jobId || url
+        const next = new Set(retryingKeys.value)
+        next.add(taskKey)
+        retryingKeys.value = next
         try {
-            await sendRuntimeMessage({ action: RUNTIME_ACTIONS.RETRY_BATCH_ITEM, url })
+            await sendRuntimeMessage({ action: RUNTIME_ACTIONS.RETRY_BATCH_ITEM, url, jobId })
             await updateStatus()
         } finally {
-            const done = new Set(retryingUrls.value)
-            done.delete(url)
-            retryingUrls.value = done
+            const done = new Set(retryingKeys.value)
+            done.delete(taskKey)
+            retryingKeys.value = done
         }
     }
 
@@ -148,7 +151,7 @@ export const useBatchStore = defineStore('batch', () => {
         isPausing,
         isResuming,
         isRetryingAll,
-        retryingUrls,
+        retryingKeys,
         updateStatus,
         startBatch,
         pauseBatch,

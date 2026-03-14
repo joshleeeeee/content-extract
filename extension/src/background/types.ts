@@ -16,6 +16,7 @@ export type {
 } from '../shared/models/batch'
 
 export {
+    getBatchItemKey,
     inferResultKind,
     isBatchArchiveResult,
     isBatchContentResult,
@@ -24,6 +25,7 @@ export {
     isBatchResultItem,
     isBatchSuccessItem,
     isReviewTaskItem,
+    normalizeJobId,
     normalizeExportFormat,
     normalizeStoredQueueItem,
     normalizeStoredResultItem,

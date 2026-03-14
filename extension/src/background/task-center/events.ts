@@ -5,9 +5,9 @@ import type { ExtractionProgressEvent } from '../../shared/contracts/runtime'
 
 export async function updateExtractionProgress(request: ExtractionProgressEvent): Promise<{ success: boolean }> {
     const requestId = String(request.requestId || '')
-    const taskUrl = runtimeState.extractionRequestToUrl.get(requestId)
-    if (taskUrl) {
-        const running = runtimeState.activeTasks.get(taskUrl)
+    const taskKey = runtimeState.extractionRequestToTaskKey.get(requestId)
+    if (taskKey) {
+        const running = runtimeState.activeTasks.get(taskKey)
         if (running) {
             const total = Number(request.total)
             const round = Number(request.round)

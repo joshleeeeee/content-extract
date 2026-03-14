@@ -56,6 +56,20 @@ export interface SetBatchConcurrencyResponse extends RuntimeBaseResponse {
     effectiveConcurrency: number
 }
 
+export interface SetBatchWindowModeRequest {
+    action: typeof RUNTIME_ACTIONS.SET_BATCH_WINDOW_MODE
+    value: boolean
+}
+
+export type SetBatchWindowModeResponse = RuntimeBaseResponse
+
+export interface SetBatchWindowCountRequest {
+    action: typeof RUNTIME_ACTIONS.SET_BATCH_WINDOW_COUNT
+    value: number
+}
+
+export type SetBatchWindowCountResponse = RuntimeBaseResponse
+
 export interface GetBatchStatusRequest {
     action: typeof RUNTIME_ACTIONS.GET_BATCH_STATUS
 }
@@ -69,11 +83,14 @@ export interface GetBatchStatusResponse {
     activeCount: number
     configuredConcurrency: number
     effectiveConcurrency: number
+    queueItems?: BatchQueueItem[]
+    activeItems?: BatchQueueItem[]
 }
 
 export interface GetFullResultsRequest {
     action: typeof RUNTIME_ACTIONS.GET_FULL_RESULTS
-    urls: string[]
+    urls?: string[]
+    jobIds?: string[]
 }
 
 export interface GetFullResultsResponse extends RuntimeBaseResponse {
@@ -100,14 +117,16 @@ export type ClearBatchResultsResponse = RuntimeBaseResponse
 
 export interface DeleteBatchItemRequest {
     action: typeof RUNTIME_ACTIONS.DELETE_BATCH_ITEM
-    url: string
+    url?: string
+    jobId?: string
 }
 
 export type DeleteBatchItemResponse = RuntimeBaseResponse
 
 export interface RetryBatchItemRequest {
     action: typeof RUNTIME_ACTIONS.RETRY_BATCH_ITEM
-    url: string
+    url?: string
+    jobId?: string
 }
 
 export type RetryBatchItemResponse = RuntimeBaseResponse
@@ -145,6 +164,8 @@ export interface ExtractionProgressEvent {
 export type RuntimeRequest =
     | StartBatchProcessRequest
     | SetBatchConcurrencyRequest
+    | SetBatchWindowModeRequest
+    | SetBatchWindowCountRequest
     | GetBatchStatusRequest
     | GetFullResultsRequest
     | PauseBatchRequest
@@ -159,6 +180,8 @@ export type RuntimeRequest =
 export type RuntimeResponse =
     | StartBatchProcessResponse
     | SetBatchConcurrencyResponse
+    | SetBatchWindowModeResponse
+    | SetBatchWindowCountResponse
     | GetBatchStatusResponse
     | GetFullResultsResponse
     | PauseBatchResponse

@@ -72,7 +72,7 @@ export function syncRuntimeState() {
 }
 
 export function isTaskCancelled(url: string) {
-    return runtimeState.isPaused || runtimeState.cancelledTaskUrls.has(url)
+    return runtimeState.isPaused || runtimeState.cancelledTaskKeys.has(url)
 }
 
 export function collectArchiveStorageKeys(items: BatchResultItem[]) {

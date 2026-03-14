@@ -58,6 +58,36 @@ const reviewRecentDaysOptions = [
       <p class="text-[11px] text-slate-400 mt-1">默认参数已可直接使用；只有需要精调时再展开。</p>
     </section>
 
+    <section class="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 p-4">
+      <div class="flex flex-col">
+        <h3 class="text-[15px] font-semibold">CLI Bridge</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">当守护进程不是默认 `127.0.0.1:17327` 时，在这里填写实际地址。</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[11px] font-medium text-gray-500 ml-1">Host</label>
+          <input
+            v-model.trim="settings.cliBridgeHost"
+            type="text"
+            placeholder="127.0.0.1"
+            class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg h-9 px-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[11px] font-medium text-gray-500 ml-1">Port</label>
+          <input
+            v-model.number="settings.cliBridgePort"
+            type="number"
+            min="1"
+            max="65535"
+            placeholder="17327"
+            class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg h-9 px-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+        </div>
+      </div>
+    </section>
+
     <!-- Image Processing Mode -->
     <section v-if="showAdvancedSettings" class="space-y-3">
       <div class="flex flex-col">

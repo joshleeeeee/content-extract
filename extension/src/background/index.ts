@@ -1,4 +1,5 @@
 import { handleRuntimeMessage } from './messageHandlers'
+import { initCliBridge } from './bridge'
 import { ensureProcessing } from './processor'
 import { syncRuntimeState, updateConfiguredConcurrencyFromOptions } from './runtime'
 import { runtimeState } from './state'
@@ -57,6 +58,7 @@ const preparePromise = new Promise<void>((resolve) => {
         }
         syncRuntimeState()
         runtimeState.isReady = true
+        void initCliBridge()
         resolve()
     })
 })

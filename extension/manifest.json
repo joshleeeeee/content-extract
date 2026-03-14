@@ -11,10 +11,13 @@
     "unlimitedStorage",
     "debugger",
     "downloads",
-    "system.display"
+    "system.display",
+    "alarms"
   ],
   "host_permissions": [
+    "http://*/*",
     "http://localhost/*",
+    "http://127.0.0.1/*",
     "*://*.jd.com/*",
     "*://*.jd.hk/*",
     "*://*.taobao.com/*",

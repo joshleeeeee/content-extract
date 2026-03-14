@@ -4,6 +4,8 @@
 
 ContentExtract 是一个浏览器扩展，支持从在线文档和社交平台批量导出内容为多种格式。
 
+**当前版本**: `1.8.2`
+
 **技术栈**: Vue 3 + TypeScript + Vite + Pinia + TailwindCSS
 
 **核心特性**:

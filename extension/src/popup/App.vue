@@ -11,7 +11,7 @@ import { useExtractor } from '../composables/useExtractor'
 import { useBatchStatusPolling } from '../composables/useBatchStatusPolling'
 import { getDefaultSingleFormats, type ExportFormat, type TaskType } from '../platformRegistry'
 
-const version = ref('1.8.0')
+const version = ref('1.8.2')
 const activeTab = ref('main')
 const settings = useSettingsStore()
 const batchStore = useBatchStore()

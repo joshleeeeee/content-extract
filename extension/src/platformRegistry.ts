@@ -99,7 +99,7 @@ export const PLATFORM_REGISTRY: PlatformProfile[] = [
         },
         capabilities: {
             supportsScanLinks: true,
-            supportsScrollScan: false,
+            supportsScrollScan: true,
             supportsPdf: true
         }
     }),

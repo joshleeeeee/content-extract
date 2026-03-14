@@ -11,10 +11,10 @@ export const content = {
             repo: "GitHub Repo"
         },
         hero: {
-            badge: "🚀 v1.8.1 is out now",
+            badge: "🚀 v1.8.2 is out now",
             titleStart: "Export Everything with",
             titleEnd: "Content Extractor",
-            description: "The ultimate Multi-Source Batch Extractor for your browser. Built to seamlessly bulk export cloud documents (Feishu), job listings (BOSS), product reviews (JD/Taobao), and deeply-nested social media comments (Douyin/Xiaohongshu/Bilibili). Utilizing advanced hybrid API+DOM extraction and auto-scrolling, it effortlessly automates large-scale scraping of online data into clean Markdown, Rich Text, CSV/JSON datasets, and beautifully bookmarked PDFs. No coding required.",
+            description: "The ultimate multi-source batch extractor for your browser. Export cloud docs (Feishu/Lark), job listings (BOSS), product reviews (JD/Taobao/Tmall), and deeply nested social comments (Douyin/Xiaohongshu/Bilibili) into clean Markdown, Rich Text, CSV/JSON, or beautifully bookmarked PDFs. v1.8.2 adds tiled multi-window batch mode, clearer task progress bars, filtered selection fixes, and stronger BOSS scroll support.",
             downloadRelease: "Download Release ZIP",
             installHint: "Install manually: open chrome://extensions and load the unzipped folder.",
             exploreFeatures: "Explore Features"
@@ -62,7 +62,7 @@ export const content = {
                 },
                 {
                     title: "Automated Batching",
-                    description: "Automatically identifies docs or product links on any page. Scan once and batch export with task-aware formats including Markdown, PDF, CSV, and JSON."
+                    description: "Automatically identifies docs, job cards, or product links on any page. Scan once and batch export with task-aware formats including Markdown, PDF, CSV, and JSON, now with an optional tiled multi-window mode for heavy workloads."
                 },
                 {
                     title: "Smart Content Merging",
@@ -78,7 +78,7 @@ export const content = {
                 },
                 {
                     title: "Task Manager",
-                    description: "Built-in manager to track progress, history, and archives. v1.8.0 adds platform-aware review hints, richer progress rounds, quick download, and quality preview for CSV/JSON tasks."
+                    description: "Built-in manager to track progress, history, and archives. v1.8.2 adds clearer batch progress bars, more accurate filtered select-all and empty states, plus a smoother task overview for large extraction queues."
                 }
             ]
         },
@@ -93,7 +93,7 @@ export const content = {
             },
             step2: {
                 title: "Unified Task Center",
-                description: "Monitor multiple capture tasks in real-time. Choose to export as individual files, a ZIP archive, or a merged document.",
+                description: "Monitor multiple capture tasks in real-time with clearer progress bars. Choose individual files, a ZIP archive, or a merged document, and scale up with tiled multi-window batch runs.",
                 point1: "Flexible export modes",
                 point2: "Persistent task queue"
             },
@@ -124,7 +124,7 @@ export const content = {
                 {
                     name: "BOSS Zhipin",
                     page: "Job detail pages (zhipin.com)",
-                    content: "Job descriptions, requirements, company info, salary ranges",
+                    content: "Job descriptions, requirements, company info, salary ranges, with stronger support for scroll-loaded listings",
                     formats: ["Markdown", "PDF", "HTML"]
                 },
                 {
@@ -182,10 +182,10 @@ export const content = {
             repo: "GitHub 仓库"
         },
         hero: {
-            badge: "🚀 v1.8.1 现已发布",
+            badge: "🚀 v1.8.2 现已发布",
             titleStart: "使用多源内容提取器",
             titleEnd: "万物皆可导出",
-            description: "专为浏览器打造的强大的多平台批量内容提取器 (Batch Extractor)。从飞书云端文档、BOSS 招聘信息的自动提取，到京东/淘宝商品评价、抖音/小红书/B站社媒评论的深度下钻机制，均可通过 API+DOM 配合无限向下追踪实现全自动的批量抓取。免写代码，一键将全网海量碎片内容转化为标准的 Markdown、富文本、结构化 CSV/JSON 或高品质 PDF 文档库。",
+            description: "专为浏览器打造的强大多平台批量内容提取器。从飞书/Lark 文档、BOSS 招聘信息，到京东/淘宝/天猫商品评价与抖音/小红书/B站社媒评论，均可一键转化为标准 Markdown、富文本、结构化 CSV/JSON 或高品质 PDF。v1.8.2 新增多窗口平铺批量抓取、批量任务进度条、筛选视图状态修正，并补强 BOSS 滚动加载支持。",
             downloadRelease: "下载 Release 安装包",
             installHint: "下载后在 chrome://extensions 开启开发者模式，加载解压后的扩展目录。",
             exploreFeatures: "探索功能"
@@ -225,7 +225,7 @@ export const content = {
                 },
                 {
                     title: "多平台兼容",
-                    description: "预置飞书/Lark、BOSS直聘，以及京东/淘宝/天猫/抖音/小红书/B站评论抓取适配器，持续扩展更多主流内容平台。"
+                    description: "预置飞书/Lark、BOSS直聘，以及京东/淘宝/天猫/抖音/小红书/B站评论抓取适配器；其中 BOSS 场景进一步补强了滚动加载内容的提取支持。"
                 },
                 {
                     title: "智能图片处理",
@@ -233,7 +233,7 @@ export const content = {
                 },
                 {
                     title: "自动化批处理",
-                    description: "智能识别页面中的可提取目标。一键扫描后按任务类型选择导出格式，支持 Markdown/PDF 以及评论场景的 CSV/JSON。"
+                    description: "智能识别页面中的可提取目标。一键扫描后按任务类型选择导出格式，支持 Markdown/PDF 以及评论场景的 CSV/JSON；大批量任务可启用多窗口平铺模式加速抓取。"
                 },
                 {
                     title: "智能内容合并",
@@ -249,7 +249,7 @@ export const content = {
                 },
                 {
                     title: "现代下载中心",
-                    description: "内置任务管理器，支持持久化历史记录与 ZIP 归档。v1.8.0 新增平台化评论任务提示、轮次进度与质检预览，轻松掌控你的所有导出任务。"
+                    description: "内置任务管理器，支持持久化历史记录与 ZIP 归档。v1.8.2 新增批量任务进度条，修复筛选结果下的全选与空状态表现，并让大批量抓取过程更清晰可控。"
                 }
             ]
         },
@@ -264,7 +264,7 @@ export const content = {
             },
             step2: {
                 title: "任务管理大厅",
-                description: "统一监控多个抓取任务的实时进度。支持导出为独立文件、ZIP 压缩包或智能合并文档。",
+                description: "统一监控多个抓取任务的实时进度，并提供更清晰的批量进度条。支持导出为独立文件、ZIP 压缩包或智能合并文档，大批量场景还可启用多窗口平铺抓取。",
                 point1: "灵活多样的导出模式",
                 point2: "持久化任务队列"
             },
@@ -295,7 +295,7 @@ export const content = {
                 {
                     name: "BOSS 直聘",
                     page: "职位详情页 (zhipin.com)",
-                    content: "职位详细描述(JD)、岗位要求、薪资范围、公司全称及基本概况",
+                    content: "职位详细描述(JD)、岗位要求、薪资范围、公司全称及基本概况，支持滚动加载场景下的稳定提取",
                     formats: ["Markdown", "PDF", "HTML"]
                 },
                 {
